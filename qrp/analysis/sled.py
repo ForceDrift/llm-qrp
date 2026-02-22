@@ -164,6 +164,31 @@ class SLED_DecodedLLM_GSM8K:
                 disagreement.append(token_results)
             return disagreement
 
+    def token_ranking_evolution(self, prompt):
+
+        with torch.no_grad():
+            input_tkns = self.tokenizer(prompt, return_tensors="pt").to(self.device)
+            outputs = self.model(**input_tkns, output_hidden_states=True)
+            hidden_states = outputs.hidden_states
+
+            premature_layers = []
+            for h in hidden_states:
+                logits = self.model.lm_head(h)
+                premature_layers.append(logits)
+
+            mature_logits = premature_layers[-1][:, -1, :]
+            token_id = torch.argmax(mature_logits, dim=-1)
+            ranking = []
+
+            for layer in premature_layers:
+                tkn_logits = layer[:, -1, :]  # get layer logits
+                probs = torch.nn.functional.softmax(tkn_logits, dim=-1)
+
+                sorted_idx = torch.argsort(probs, descending=True)  # sort
+                rank = (sorted_idx == token_id.unsqueeze(-1)).nonzero(as_tuple=True)
+                ranking.append(rank)
+        return ranking
+
 
 if __name__ == "__main__":
     model_name = "EleutherAI/gpt-neo-1.3B"
