@@ -180,13 +180,12 @@ class SLED_DecodedLLM_GSM8K:
             token_id = torch.argmax(mature_logits, dim=-1)
             ranking = []
 
-            for layer in premature_layers:
-                tkn_logits = layer[:, -1, :]  # get layer logits
+            for layer_idx, layer in enumerate(premature_layers):
+                tkn_logits = layer[:, -1, :]
                 probs = torch.nn.functional.softmax(tkn_logits, dim=-1)
 
-                sorted_idx = torch.argsort(probs, descending=True)  # sort
-                rank = (sorted_idx == token_id.unsqueeze(-1)).nonzero(as_tuple=True)
-                ranking.append(rank)
+                sorted_idx = torch.argsort(probs, descending=True)
+                ranking.append({layer_idx, sorted_idx})
         return ranking
 
 
@@ -202,6 +201,10 @@ if __name__ == "__main__":
     disagreement_results = test_model.layer_disagreement(
         prompt, evolution_scale=5, candidate_premature_layers=layers_to_test
     )
+    ranks = test_model.token_ranking_evolution(prompt)
+
+    for i, r in enumerate(ranks):
+        print(f"Layer {i:02d} | rank = {r}")
 
     print(f"\n--- layer disagreement (SLED) results for {model_name} ---")
 
