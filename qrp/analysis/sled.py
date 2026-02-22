@@ -52,7 +52,7 @@ class SLED_DecodedLLM_GSM8K:
         with torch.no_grad():
             output = self.model(
                 **input_tkns, output_hidden_states=True).hidden_states
-            logits_final = logits_curr = self.model(
+            logits_final = self.model(
                 inputs_embeds=self.lm_head
             ).logits
             final_prob = torch.log_softmax(logits_final, dim=-1)
@@ -96,12 +96,58 @@ class SLED_DecodedLLM_GSM8K:
         probs_thresh = torch.min(min_thresh, probs_thresh)
         probs_thresh = probs_thresh.unsqueeze(-1)
         return scores_prob < probs_thresh
- # def layer_disagreement(self, input_text1, input_text2, pmi=False,
- #                 mature_layer=None, premature_layer=None, candidate_premature_layers=[], mode='VanillaGreedy',
- #                 verbose=True,
- #                 remove_stop_words=False, relative_top=0.1, relative_top_value=-1000.0, post_softmax=False,
- #                 evolution_rate=2, evolution_scale=10, evolution_lower_bound=-100, **kwargs):
- #
+
+    def layer_disagreement(self, prompt, evolution_scale=10):
+        with torch.no_grad():
+            input_tkns = self.tokenizer(
+                prompt, return_tensors="pt").input_ids.to(self.device)
+            outputs = self.model(**input_tkns, output_hidden_states=True)
+            hidden_states = outputs.hidden_states
+
+            premature_layers = []
+            for h in hidden_states:
+                logits = self.model.lm_head(h)
+                premature_layers.append(logits)
+
+            mature_logits = premature_layers[-1]
+            seq_len = input_tkns["input_ids"].shape[1]
+
+            disagreement = []
+
+            for seq_i in range(seq_len - 1):
+                stacked_premature = torch.stack(
+                    [l[:, seq_i, :] for l in premature_layers[:-1]], dim=0)
+                mature_token_logits = mature_logits[:, seq_i, :]
+
+                # softmax
+                softmax_mature = torch.nn.functional.softmax(
+                    mature_token_logits, dim=-1)
+                softmax_premature = torch.nn.functional.softmax(
+                    stacked_premature, dim=-1)
+
+                topk_prob, topk_indices = torch.topk(
+                    softmax_mature, evolution_scale, dim=-1)
+
+                topk_indices = topk_indices[0]
+
+                divergence = stacked_premature - \
+                    mature_token_logits.unsqueeze(0)
+
+                candidate_gradients_expanded = softmax_premature.expand(
+                    -1, len(topk_indices), -1)
+                candidate_mask = torch.zeros_like(
+                    candidate_gradients_expanded)
+                topk_indices_expanded = topk_indices.unsqueeze(
+                    0).unsqueeze(2)
+                candidate_mask.scatter_(2, topk_indices_expanded.expand(softmax_premature.size(0), -1, -1),
+                                        1)
+                candidate_gradients_expanded = candidate_gradients_expanded - candidate_mask
+                candidate_gradients_expanded = candidate_gradients_expanded.to(
+                    torch.float32)
+                layer_divergence_expanded = divergence.to(torch.float32)
+                layer_dot_results = F.cosine_similarity(candidate_gradients_expanded, layer_divergence_expanded,
+                                                        dim=2)
+
  #
 
 
