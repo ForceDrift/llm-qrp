@@ -83,7 +83,6 @@
 #             targetLayer.load_state_dict(originalState)
 
 #         return levResults
-
 import copy
 import torch
 import torch.nn.functional as F
@@ -122,6 +121,7 @@ class EntropyByLayer:
         levResults = []
         for i in tqdm(range(self.numLayers)):
             targetLayer = self.model.model.layers[i]
+            
             layerBackup = copy.deepcopy(targetLayer)
             
             targetModules = {
@@ -158,7 +158,6 @@ class EntropyByLayer:
                 "kl": klVal, 
                 "deltaH": abs(hVal - hBase)
             })
-
             self.model.model.layers[i] = layerBackup
 
         return levResults
