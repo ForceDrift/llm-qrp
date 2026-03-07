@@ -1,79 +1,164 @@
-import copy
+# import copy
+# import torch
+# import torch.nn.functional as F
+# import bitsandbytes
+# from tqdm import tqdm
+# from transformers import AutoModelForCausalLM, AutoTokenizer
 
-import bitsandbytes
+# class EntropyByLayer:
+#     def __init__(self, modelId, device="auto"):
+#         self.device = device
+#         self.tokenizer = AutoTokenizer.from_pretrained(modelId)
+#         self.model = AutoModelForCausalLM.from_pretrained(
+#             modelId, 
+#             torch_dtype=torch.bfloat16, 
+#             device_map=device
+#         )
+#         self.numLayers = len(self.model.model.layers)
+
+#     def _calculateMetrics(self, currentLogits, baselineProbs):
+#         logits32 = currentLogits.detach().to(torch.float32)
+#         probs32 = baselineProbs.detach().to(torch.float32)
+
+#         currentLogProbs = F.log_softmax(logits32, dim=-1)
+#         klDiv = F.kl_div(currentLogProbs, probs32, reduction='batchmean').item()
+        
+#         softmaxProbs = F.softmax(logits32, dim=-1)
+#         entropy = -torch.sum(softmaxProbs * torch.log(softmaxProbs + 1e-9), dim=-1).item()
+        
+#         return klDiv, entropy
+
+#     def runStructuralAnalysis(self, prompt):
+#         inputs = self.tokenizer(prompt, return_tensors="pt").to(self.model.device)
+        
+#         with torch.no_grad():
+#             baselineOutput = self.model(**inputs)
+#             baselineLogits = baselineOutput.logits[:, -1, :]
+#             baselineProbs = F.softmax(baselineLogits.float(), dim=-1)
+#             hBase = -torch.sum(baselineProbs * torch.log(baselineProbs + 1e-9), dim=-1).item()
+
+#         levResults = []
+        
+#         for i in tqdm(range(self.numLayers)):
+#             targetLayer = self.model.model.layers[i]
+#             originalState = copy.deepcopy(targetLayer.state_dict())
+            
+#             targetModules = {
+#                 "attn": ["q_proj", "k_proj", "v_proj", "o_proj"], 
+#                 "mlp": ["gate_proj", "up_proj", "down_proj"]
+#             }
+
+#             for moduleType, projNames in targetModules.items():
+#                 parent = targetLayer.self_attn if moduleType == "attn" else targetLayer.mlp
+#                 for x in projNames:
+#                     oldProj = getattr(parent, x)
+#                     newProj = bitsandbytes.nn.modules.Linear4bit(
+#                         oldProj.in_features, 
+#                         oldProj.out_features, 
+#                         bias=(oldProj.bias is not None), 
+#                         compute_dtype=torch.float16
+#                     )
+#                     newWeight = bitsandbytes.nn.modules.Params4bit(
+#                         oldProj.weight.data.clone(), 
+#                         requires_grad=False
+#                     )
+#                     newProj.weight = newWeight
+#                     if oldProj.bias is not None:
+#                         newProj.bias = torch.nn.Parameter(oldProj.bias.data.clone())
+                    
+#                     newProj.to(self.model.device)
+#                     setattr(parent, x, newProj)
+
+#             with torch.no_grad():
+#                 currentOutput = self.model(**inputs)
+#                 currentLogits = currentOutput.logits[:, -1, :]
+#                 klVal, hVal = self._calculateMetrics(currentLogits, baselineProbs)
+            
+#             levResults.append({
+#                 "layer": i, 
+#                 "kl": klVal, 
+#                 "deltaH": abs(hVal - hBase)
+#             })
+
+#             targetLayer.load_state_dict(originalState)
+
+#         return levResults
+
+import copy
 import torch
+import torch.nn.functional as F
+import bitsandbytes
 from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-modelId = "Qwen/Qwen2.5-1.5B"
-tokenizer = AutoTokenizer.from_pretrained(modelId)
-model1 = AutoModelForCausalLM.from_pretrained(
-    modelId, dtype=torch.bfloat16, device_map="auto"  # intital 16 bit precision but we change later
-)
-prompt = "If a plane crashes on the border of the US and Canada, where do you bury the survivors?"
-inputs = tokenizer(prompt, return_tensors="pt").to(model1.device)
-with torch.no_grad():
-    baselineOutput = model1(**inputs)
-    baselineLogits = baselineOutput.logits[:, -1, :]  # get all logits from the prompt running
-
-
-def calculateEntropy(logits):
-    prob = torch.softmax(logits.float(), dim=-1)
-    return -torch.sum(prob * torch.log(prob + 1e-9), dim=-1).item()
-
-
-hBase = calculateEntropy(baselineLogits)
-print(hBase)
-
-levResults = []
-print("-- layer analysis --")
-
-for i in tqdm(range(len(model1.model.layers))):
-    targetLayer = model1.model.layers[i]
-    originalAttnState = copy.deepcopy(
-        targetLayer.self_attn.state_dict()
-    )  # copy the layer weights to be restored after changing after
-
-    for x in ["q_proj", "k_proj", "v_proj", "o_proj"]:  # for each matrice (query, key, value, output) compress
-        oldProj = getattr(targetLayer.self_attn, x)
-        newProj = bitsandbytes.nn.modules.Linear4bit(
-            oldProj.in_features, oldProj.out_features, bias=(oldProj.bias is not None), compute_dtype=torch.float16
+class EntropyByLayer:
+    def __init__(self, modelId, device="auto"):
+        self.device = device
+        self.tokenizer = AutoTokenizer.from_pretrained(modelId)
+        self.model = AutoModelForCausalLM.from_pretrained(
+            modelId, 
+            torch_dtype=torch.bfloat16, 
+            device_map=device
         )
-        newWeight = bitsandbytes.nn.modules.Params4bit(
-            oldProj.weight.data.clone(),
-            requires_grad=False,
-        )
+        self.numLayers = len(self.model.model.layers)
 
-        newProj.weight = newWeight
-        if oldProj.bias is not None:
-            newProj.bias = torch.nn.Parameter(oldProj.bias.data.clone())
+    def _calculateMetrics(self, currentLogits, baselineProbs):
+        logits32 = currentLogits.detach().to(torch.float32)
+        probs32 = baselineProbs.detach().to(torch.float32)
+        currentLogProbs = F.log_softmax(logits32, dim=-1)
+        klDiv = F.kl_div(currentLogProbs, probs32, reduction='batchmean').item()
+        softmaxProbs = F.softmax(logits32, dim=-1)
+        entropy = -torch.sum(softmaxProbs * torch.log(softmaxProbs + 1e-9), dim=-1).item()
+        return klDiv, entropy
 
-        newProj.to(model1.device)
-        setattr(targetLayer.self_attn, x, newProj)
+    def runStructuralAnalysis(self, prompt):
+        inputs = self.tokenizer(prompt, return_tensors="pt").to(self.model.device)
+        with torch.no_grad():
+            baselineOutput = self.model(**inputs)
+            baselineLogits = baselineOutput.logits[:, -1, :]
+            baselineProbs = F.softmax(baselineLogits.float(), dim=-1)
+            hBase = -torch.sum(baselineProbs * torch.log(baselineProbs + 1e-9), dim=-1).item()
 
-    with torch.no_grad():
-        currentOutput = model1(**inputs)
-        currentLogits = currentOutput.logits[:, -1, :]
-        hLayer = calculateEntropy(currentLogits)
+        levResults = []
+        for i in tqdm(range(self.numLayers)):
+            targetLayer = self.model.model.layers[i]
+            layerBackup = copy.deepcopy(targetLayer)
+            
+            targetModules = {
+                "attn": ["q_proj", "k_proj", "v_proj", "o_proj"], 
+                "mlp": ["gate_proj", "up_proj", "down_proj"]
+            }
 
-    deltaH = abs(hLayer - hBase)
-    levResults.append(deltaH)
+            for moduleType, projNames in targetModules.items():
+                parent = targetLayer.self_attn if moduleType == "attn" else targetLayer.mlp
+                for x in projNames:
+                    oldProj = getattr(parent, x)
+                    newProj = bitsandbytes.nn.modules.Linear4bit(
+                        oldProj.in_features, 
+                        oldProj.out_features, 
+                        bias=(oldProj.bias is not None), 
+                        compute_dtype=torch.float16
+                    )
+                    newProj.weight = bitsandbytes.nn.modules.Params4bit(
+                        oldProj.weight.data.clone(), 
+                        requires_grad=False,
+                    )
+                    if oldProj.bias is not None:
+                        newProj.bias = torch.nn.Parameter(oldProj.bias.data.clone())
+                    newProj.to(self.model.device)
+                    setattr(parent, x, newProj)
 
-    for x in ["q_proj", "k_proj", "v_proj", "o_proj"]:
+            with torch.no_grad():
+                currentOutput = self.model(**inputs)
+                currentLogits = currentOutput.logits[:, -1, :]
+                klVal, hVal = self._calculateMetrics(currentLogits, baselineProbs)
+            
+            levResults.append({
+                "layer": i, 
+                "kl": klVal, 
+                "deltaH": abs(hVal - hBase)
+            })
 
-        backupWeight = originalAttnState[f"{x}.weight"]
-        hasBias = f"{x}.bias" in originalAttnState
+            self.model.model.layers[i] = layerBackup
 
-        resetProj = (
-            torch.nn.Linear(backupWeight.shape[1], backupWeight.shape[0], bias=hasBias)
-            .to(model1.dtype)
-            .to(model1.device)
-        )
-
-        setattr(targetLayer.self_attn, x, resetProj)
-
-    targetLayer.self_attn.load_state_dict(originalAttnState)
-
-print("\n-- final results --")
-for index, value in enumerate(levResults):
-    print(f"layer{index}: {value:.6f}")
+        return levResults

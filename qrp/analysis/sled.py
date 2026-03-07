@@ -3,8 +3,7 @@ import torch
 import torch.nn.functional as F
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
-
-class SLED_DecodedLLM_GSM8K:
+class SLED_Decoded:
     def __init__(self, model_name, device):
         self.model_name = model_name
         self.device = device
@@ -12,7 +11,7 @@ class SLED_DecodedLLM_GSM8K:
         self.config = AutoConfig.from_pretrained(model_name)
         self.layers = self.config.num_hidden_layers
         self.lm_head = self.model.get_output_embeddings()
-
+        
     def load_model(self, model_name):
         model = AutoModelForCausalLM.from_pretrained(model_name)
         tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -28,6 +27,7 @@ class SLED_DecodedLLM_GSM8K:
         for i in range(1, len(output)):
             logits_prev = self.model(inputs_embeds=output[i - 1]).logits
             logits_curr = self.model(inputs_embeds=output[i]).logits
+            
 
             prev_prob = torch.softmax(logits_prev, dim=-1)
             curr_log_prob = torch.log_softmax(logits_curr, dim=-1)
@@ -41,14 +41,21 @@ class SLED_DecodedLLM_GSM8K:
 
         input_tkns = self.tokenizer(prompt, return_tensors="pt").to(self.device)
         with torch.no_grad():
-            output = self.model(**input_tkns, output_hidden_states=True).hidden_states
-            logits_final = self.model(inputs_embeds=self.lm_head).logits
+            outputs = self.model(**input_tkns, output_hidden_states=True)
+
+            if isinstance(outputs, tuple):
+                logits_final = outputs[0]
+                hidden_states = outputs.hidden_states if hasattr(outputs, "hidden_states") else outputs[1] # type: ignore
+            else:   
+                logits_final = outputs.logits  
+                hidden_states = outputs.hidden_states 
+
             final_prob = torch.log_softmax(logits_final, dim=-1)
 
             kl_values = []
 
-            for i in range(1, len(output)):
-                logits_curr = self.model(inputs_embeds=output[i]).logits
+            for i in range(1, len(outputs)):
+                logits_curr = self.model.lm_head(hidden_states[i])
                 curr_log_prob = torch.log_softmax(logits_curr, dim=-1)
                 kl = torch.nn.functional.kl_div(curr_log_prob, final_prob, reduction="batchmean")
                 kl_values.append(kl)
@@ -60,11 +67,16 @@ class SLED_DecodedLLM_GSM8K:
         input_tkns = self.tokenizer(prompt, return_tensors="pt").to(self.device)
 
         with torch.no_grad():
-            output = self.model(**input_tkns, output_hidden_states=True).hidden_states
-        prob = torch.nn.functional.softmax(output, dim=-1)
+            outputs = self.model(**input_tkns, output_hidden_states=True)
+            logits = outputs.logits
+        
+        last_token_logits = logits[:,-1,:]
+
+
+        prob = torch.nn.functional.softmax(last_token_logits, dim=-1)
         tkn_prob, token_id = torch.max(prob, dim=-1)
-        pred_token = self.tokenizer.convert_ids_to_tokens([token_id])[0]
-        return (pred_token, tkn_prob)
+        pred_token = self.tokenizer.convert_ids_to_tokens([token_id[0].item()])[0]
+        return pred_token, tkn_prob[0].item()
 
     # TODO: add token rank and SLED
 
@@ -183,37 +195,8 @@ class SLED_DecodedLLM_GSM8K:
             for layer_idx, layer in enumerate(premature_layers):
                 tkn_logits = layer[:, -1, :]
                 probs = torch.nn.functional.softmax(tkn_logits, dim=-1)
+                
 
                 sorted_idx = torch.argsort(probs, descending=True)
-                ranking.append({layer_idx, sorted_idx})
+                ranking.append({layer_idx: sorted_idx})
         return ranking
-
-
-if __name__ == "__main__":
-    model_name = "EleutherAI/gpt-neo-1.3B"
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-
-    test_model = SLED_DecodedLLM_GSM8K(model_name, device)
-    prompt = "You discover a new color that no human has ever seen. How would you describe it to someone?"
-
-    layers_to_test = list(range(test_model.layers))
-
-    disagreement_results = test_model.layer_disagreement(
-        prompt, evolution_scale=5, candidate_premature_layers=layers_to_test
-    )
-    ranks = test_model.token_ranking_evolution(prompt)
-
-    for i, r in enumerate(ranks):
-        print(f"Layer {i:02d} | rank = {r}")
-
-    print(f"\n--- layer disagreement (SLED) results for {model_name} ---")
-
-    tokens = test_model.tokenizer.tokenize(prompt)
-
-    for i, token_data in enumerate(disagreement_results):
-        token_text = tokens[i] if i < len(tokens) else f"Pos_{i}"
-        print(f"\ntoken {i} ('{token_text}'):")
-
-        for layer_idx, scores in token_data.items():
-            avg_score = scores.mean().item()
-            print(f"  layer {layer_idx:02d} | avg disagreement : {avg_score:.4f}")
