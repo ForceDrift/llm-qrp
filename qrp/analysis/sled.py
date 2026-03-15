@@ -13,8 +13,10 @@ class SLED_Decoded:
         self.lm_head = self.model.get_output_embeddings()
         
     def load_model(self, model_name):
-        model = AutoModelForCausalLM.from_pretrained(model_name)
+        dtype = torch.bfloat16 if self.device == "cuda" else torch.float32
+        model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=dtype)
         tokenizer = AutoTokenizer.from_pretrained(model_name)
+        model.to(self.device)
         return model, tokenizer
 
     def kl_between_current_prev(self, prompt):  # model logits per token)
@@ -25,9 +27,8 @@ class SLED_Decoded:
         kl_values = []
 
         for i in range(1, len(output)):
-            logits_prev = self.model(inputs_embeds=output[i - 1]).logits
-            logits_curr = self.model(inputs_embeds=output[i]).logits
-            
+            logits_prev = self.model(inputs_embeds=output[i - 1]).logits.float()
+            logits_curr = self.model(inputs_embeds=output[i]).logits.float()
 
             prev_prob = torch.softmax(logits_prev, dim=-1)
             curr_log_prob = torch.log_softmax(logits_curr, dim=-1)
@@ -137,8 +138,8 @@ class SLED_Decoded:
 
                 topk_indices = topk_indices[0]
 
-                log_premature = torch.log_softmax(stacked_premature, dim=-1)
-                log_mature = torch.log_softmax(mature_token_logits, dim=-1)
+                log_premature = torch.log_softmax(stacked_premature.float(), dim=-1)
+                log_mature = torch.log_softmax(mature_token_logits.float(), dim=-1)
                 divergence = log_premature - log_mature.unsqueeze(0)
 
                 divergence = divergence.squeeze()

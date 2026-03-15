@@ -4,7 +4,7 @@ import os
 import json
 import torch
 
-MAX_SAMPLES = 200
+MAX_SAMPLES = 1
 SEED = 42
 
 if __name__ == "__main__":
@@ -18,7 +18,7 @@ if __name__ == "__main__":
 
     save_folder = "results"
     os.makedirs(save_folder, exist_ok=True)
-    save_path = os.path.join(save_folder, "gsm8k_200_sled_entropy.json")
+    save_path = os.path.join(save_folder, "gsm8k_1_test.json")
 
     results = {}
 
