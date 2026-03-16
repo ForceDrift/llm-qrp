@@ -85,6 +85,9 @@ def load_prompts(dataset_name):
     elif dataset_name == "mmlu":
         ds = load_dataset("cais/mmlu", "all", split="test")
         return [x["question"] for x in ds]
+    elif dataset_name.lower() == "truthfulqa":
+        ds = load_dataset("truthful_qa", "generation", split="validation")
+        return [x["question"] for x in ds]
     else:
         raise ValueError(f"Unsupported dataset: {dataset_name}")
 
@@ -98,7 +101,10 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    os.makedirs(args.output_folder, exist_ok=True)
+    # Create organized output directory structure
+    # Preserve slashes in model name to create subfolders if present
+    output_dir = os.path.join(args.output_folder, "model", args.model_name, args.dataset)
+    os.makedirs(output_dir, exist_ok=True)
 
     analyzer = SLEDEntropyAnalyzer(model_name=args.model_name, dataset=args.dataset)
 
@@ -116,7 +122,7 @@ if __name__ == "__main__":
             "analysis": analysis
         })
 
-    output_file = os.path.join(args.output_folder, f"{args.dataset}_sled_entropy_results.json")
+    output_file = os.path.join(output_dir, "results.json")
     with open(output_file, "w") as f:
         json.dump(results, f, indent=2)
 
