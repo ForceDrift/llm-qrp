@@ -2,9 +2,13 @@ import os
 import torch
 import numpy as np
 from collections import defaultdict
-from .sled import SLED_Decoded
-from .entropy_by_layer import EntropyByLayer
+import argparse
+import json
+from datasets import load_dataset
+from tqdm import tqdm
 
+from qrp.analysis.sled import SLED_Decoded
+from qrp.analysis.entropy_by_layer import EntropyByLayer
 
 class SLEDEntropyAnalyzer:
 
@@ -71,3 +75,49 @@ class SLEDEntropyAnalyzer:
                 minmax_combined_all[k] = (combined_average[k] + scaled_entropy[k]) / 2
 
         return minmax_combined_all
+
+
+def load_prompts(dataset_name):
+    """Load prompts from supported datasets."""
+    if dataset_name == "gsm8k":
+        ds = load_dataset("gsm8k", "main", split="test")
+        return [x["question"] for x in ds]
+    elif dataset_name == "mmlu":
+        ds = load_dataset("cais/mmlu", "all", split="test")
+        return [x["question"] for x in ds]
+    else:
+        raise ValueError(f"Unsupported dataset: {dataset_name}")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Run SLED Entropy Analysis")
+    parser.add_argument("--model-name", type=str, default="HuggingFaceTB/SmolLM2-360M", help="HuggingFace model name")
+    parser.add_argument("--dataset", type=str, default="gsm8k", help="Dataset to evaluate (gsm8k, mmlu)")
+    parser.add_argument("--limit", type=int, default=10, help="Number of samples to analyze")
+    parser.add_argument("--output-folder", type=str, required=True, help="Folder to save results")
+
+    args = parser.parse_args()
+
+    os.makedirs(args.output_folder, exist_ok=True)
+
+    analyzer = SLEDEntropyAnalyzer(model_name=args.model_name, dataset=args.dataset)
+
+    prompts = load_prompts(args.dataset)
+    prompts = prompts[:args.limit]
+
+    results = []
+
+    # Progress bar while processing prompts
+    for idx, prompt in enumerate(tqdm(prompts, desc="Processing prompts", unit="prompt")):
+        analysis = analyzer.run(prompt)
+        results.append({
+            "id": idx,
+            "prompt": prompt,
+            "analysis": analysis
+        })
+
+    output_file = os.path.join(args.output_folder, f"{args.dataset}_sled_entropy_results.json")
+    with open(output_file, "w") as f:
+        json.dump(results, f, indent=2)
+
+    print(f"\nResults saved to: {output_file}")

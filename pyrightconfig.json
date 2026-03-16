@@ -1,4 +1,10 @@
 {
   "venvPath": ".",
-  "venv": ".env"
+"venv": ".env",
+"extraPaths": [
+    "./qrp/analysis"
+]
+"extraPaths": [
+    "./qrp/analysis"
+]
 }
