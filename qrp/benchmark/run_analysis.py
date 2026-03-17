@@ -78,7 +78,7 @@ class SLEDEntropyAnalyzer:
 
 
 def load_prompts(dataset_name):
-    """Load prompts from supported datasets."""
+    
     if dataset_name == "gsm8k":
         ds = load_dataset("gsm8k", "main", split="test")
         return [x["question"] for x in ds]
@@ -93,9 +93,6 @@ def load_prompts(dataset_name):
 
 
 def aggregate_scores(results_data, output_file):
-    """
-    Aggregates layer score data across all processed prompts.
-    """
     layer_sums = defaultdict(float)
     layer_counts = defaultdict(int)
 
@@ -146,7 +143,6 @@ if __name__ == "__main__":
 
     print(f"\nResults saved to: {output_file}")
 
-    # Aggregate layer data into a single JSON at the root of the {model_name} folder
     root_dir = os.path.join(args.output_folder, model_name_safe)
     aggregated_file = os.path.join(root_dir, "aggregated_scores.json")
     aggregate_scores(results, aggregated_file)
