@@ -92,28 +92,46 @@ def load_prompts(dataset_name):
         raise ValueError(f"Unsupported dataset: {dataset_name}")
 
 
+def aggregate_scores(results_data, output_file):
+    """
+    Aggregates layer score data across all processed prompts.
+    """
+    layer_sums = defaultdict(float)
+    layer_counts = defaultdict(int)
+
+    for item in results_data:
+        analysis = item.get("analysis", {})
+        for layer_key, score in analysis.items():
+            layer_sums[layer_key] += score
+            layer_counts[layer_key] += 1
+            
+    avg_scores = {}
+    for layer_key, total in layer_sums.items():
+        avg_scores[layer_key] = total / layer_counts[layer_key]
+        
+    with open(output_file, "w") as f:
+        json.dump(avg_scores, f, indent=2)
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run SLED Entropy Analysis")
     parser.add_argument("--model-name", type=str, default="HuggingFaceTB/SmolLM2-360M", help="HuggingFace model name")
     parser.add_argument("--dataset", type=str, default="gsm8k", help="Dataset to evaluate (gsm8k, mmlu)")
-    parser.add_argument("--limit", type=int, default=10, help="Number of samples to analyze")
+    parser.add_argument("--samples", type=int, default=10, help="Number of samples to analyze")
     parser.add_argument("--output-folder", type=str, required=True, help="Folder to save results")
 
     args = parser.parse_args()
 
-    # Create organized output directory structure
-    # Preserve slashes in model name to create subfolders if present
-    output_dir = os.path.join(args.output_folder, "model", args.model_name, args.dataset)
+    model_name_safe = args.model_name.replace("/", "_")
+    output_dir = os.path.join(args.output_folder, model_name_safe, args.dataset)
     os.makedirs(output_dir, exist_ok=True)
 
     analyzer = SLEDEntropyAnalyzer(model_name=args.model_name, dataset=args.dataset)
 
     prompts = load_prompts(args.dataset)
-    prompts = prompts[:args.limit]
+    prompts = prompts[:args.samples]
 
     results = []
 
-    # Progress bar while processing prompts
     for idx, prompt in enumerate(tqdm(prompts, desc="Processing prompts", unit="prompt")):
         analysis = analyzer.run(prompt)
         results.append({
@@ -127,3 +145,9 @@ if __name__ == "__main__":
         json.dump(results, f, indent=2)
 
     print(f"\nResults saved to: {output_file}")
+
+    # Aggregate layer data into a single JSON at the root of the {model_name} folder
+    root_dir = os.path.join(args.output_folder, model_name_safe)
+    aggregated_file = os.path.join(root_dir, "aggregated_scores.json")
+    aggregate_scores(results, aggregated_file)
+    print(f"Aggregated scores saved to: {aggregated_file}")

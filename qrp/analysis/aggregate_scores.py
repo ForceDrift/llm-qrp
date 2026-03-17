@@ -26,6 +26,7 @@ def loadAndAggregate(resultsPath: str) -> dict[str, float]:
         for layer in layerSums
     }
     return avgScores
+
 def getSortedLayers(avgScores: dict[str, float]) -> list[tuple[int, float]]:
     parsed = []
     for layerKey, score in avgScores.items():

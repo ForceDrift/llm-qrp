@@ -21,7 +21,6 @@ class AblationController:
 
         return model 
 
-if __name__ == "__main__":
     
 
 # to do: add benchmarking post-ablation for each layer pass, save to results

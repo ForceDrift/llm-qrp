@@ -13,10 +13,8 @@ class SLED_Decoded:
         self.lm_head = self.model.get_output_embeddings()
         
     def load_model(self, model_name):
-        dtype = torch.bfloat16 if self.device == "cuda" else torch.float32
-        model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=dtype)
+        model = AutoModelForCausalLM.from_pretrained(model_name)
         tokenizer = AutoTokenizer.from_pretrained(model_name)
-        model.to(self.device)
         return model, tokenizer
 
     def kl_between_current_prev(self, prompt):  # model logits per token)
@@ -27,8 +25,9 @@ class SLED_Decoded:
         kl_values = []
 
         for i in range(1, len(output)):
-            logits_prev = self.model(inputs_embeds=output[i - 1]).logits.float()
-            logits_curr = self.model(inputs_embeds=output[i]).logits.float()
+            logits_prev = self.model(inputs_embeds=output[i - 1]).logits
+            logits_curr = self.model(inputs_embeds=output[i]).logits
+            
 
             prev_prob = torch.softmax(logits_prev, dim=-1)
             curr_log_prob = torch.log_softmax(logits_curr, dim=-1)
@@ -38,46 +37,46 @@ class SLED_Decoded:
 
         return kl_values
 
-    def kl_between_current_final(self, prompt):
+    # def kl_between_current_final(self, prompt):
 
-        input_tkns = self.tokenizer(prompt, return_tensors="pt").to(self.device)
-        with torch.no_grad():
-            outputs = self.model(**input_tkns, output_hidden_states=True)
+    #     input_tkns = self.tokenizer(prompt, return_tensors="pt").to(self.device)
+    #     with torch.no_grad():
+    #         outputs = self.model(**input_tkns, output_hidden_states=True)
 
-            if isinstance(outputs, tuple):
-                logits_final = outputs[0]
-                hidden_states = outputs.hidden_states if hasattr(outputs, "hidden_states") else outputs[1] # type: ignore
-            else:   
-                logits_final = outputs.logits  
-                hidden_states = outputs.hidden_states 
+    #         if isinstance(outputs, tuple):
+    #             logits_final = outputs[0]
+    #             hidden_states = outputs.hidden_states if hasattr(outputs, "hidden_states") else outputs[1] # type: ignore
+    #         else:   
+    #             logits_final = outputs.logits  
+    #             hidden_states = outputs.hidden_states 
 
-            final_prob = torch.log_softmax(logits_final, dim=-1)
+    #         final_prob = torch.log_softmax(logits_final, dim=-1)
 
-            kl_values = []
+    #         kl_values = []
 
-            for i in range(1, len(outputs)):
-                logits_curr = self.model.lm_head(hidden_states[i])
-                curr_log_prob = torch.log_softmax(logits_curr, dim=-1)
-                kl = torch.nn.functional.kl_div(curr_log_prob, final_prob, reduction="batchmean")
-                kl_values.append(kl)
+    #         for i in range(1, len(outputs)):
+    #             logits_curr = self.model.lm_head(hidden_states[i])
+    #             curr_log_prob = torch.log_softmax(logits_curr, dim=-1)
+    #             kl = torch.nn.functional.kl_div(curr_log_prob, final_prob, reduction="batchmean")
+    #             kl_values.append(kl)
 
-        return kl_values
+    #     return kl_values
 
-    def prob_final_pred_token(self, prompt):
+    # def prob_final_pred_token(self, prompt):
 
-        input_tkns = self.tokenizer(prompt, return_tensors="pt").to(self.device)
+    #     input_tkns = self.tokenizer(prompt, return_tensors="pt").to(self.device)
 
-        with torch.no_grad():
-            outputs = self.model(**input_tkns, output_hidden_states=True)
-            logits = outputs.logits
+    #     with torch.no_grad():
+    #         outputs = self.model(**input_tkns, output_hidden_states=True)
+    #         logits = outputs.logits
         
-        last_token_logits = logits[:,-1,:]
+    #     last_token_logits = logits[:,-1,:]
 
 
-        prob = torch.nn.functional.softmax(last_token_logits, dim=-1)
-        tkn_prob, token_id = torch.max(prob, dim=-1)
-        pred_token = self.tokenizer.convert_ids_to_tokens([token_id[0].item()])[0]
-        return pred_token, tkn_prob[0].item()
+    #     prob = torch.nn.functional.softmax(last_token_logits, dim=-1)
+    #     tkn_prob, token_id = torch.max(prob, dim=-1)
+    #     pred_token = self.tokenizer.convert_ids_to_tokens([token_id[0].item()])[0]
+    #     return pred_token, tkn_prob[0].item()
 
     # TODO: add token rank and SLED
 
@@ -138,8 +137,8 @@ class SLED_Decoded:
 
                 topk_indices = topk_indices[0]
 
-                log_premature = torch.log_softmax(stacked_premature.float(), dim=-1)
-                log_mature = torch.log_softmax(mature_token_logits.float(), dim=-1)
+                log_premature = torch.log_softmax(stacked_premature, dim=-1)
+                log_mature = torch.log_softmax(mature_token_logits, dim=-1)
                 divergence = log_premature - log_mature.unsqueeze(0)
 
                 divergence = divergence.squeeze()
