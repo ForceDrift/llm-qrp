@@ -30,7 +30,7 @@ class AblationController:
 
     def restoreLayers(self):
         if hasattr(self, "_original_layers"):
-            self.model.model.layers = self._original_layers
+            self.model.model.layers = nn.ModuleList(self._original_layers)
 
     
 
