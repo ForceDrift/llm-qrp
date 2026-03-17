@@ -1,0 +1,17 @@
+<<<<<<< HEAD:qrp/analysis/thinking_layers.txt
+want average score of all the results list = [(layer: number)]
+
+sort this and then do thinking bench mark remove top 20% and bottom 20% through ablation measure benchmark with normal model dataset show thinking is actually effected
+
+quantize algo take sorted scores then under certain score threshold do fp_x quantization (question is how to get the threshold on which score and how much to quantize it --> determine emperically by seeing drop with different quantizations)
+
+goal is to have a list of benchmark tests with quantization amount and then accuracy (paper needs to be done before April 10th for review + we need to make account at least 2 wks prior) 
+=======
+want average score of all the results list = [(layer: number)]
+
+sort this and then do thinking bench mark remove top 20% and bottom 20% through ablation measure benchmark with normal model dataset show thinking is actually effected
+
+quantize algo take sorted scores then under certain score threshold do FP_x quantization (question is how to get the threshold on which score and how much to quantize it --> determine emperically by seeing drop with different quantizations)
+
+goal is to have a list of benchmark tests with quantization amount and then accuracy (paper needs to be done before April 10th for review + we need to make account at least 2 wks prior) 
+>>>>>>> dec54cadc9d42dbfde04c78908a5db4e7f542c43:src/qrp/analysis/thinking_layers.txt
