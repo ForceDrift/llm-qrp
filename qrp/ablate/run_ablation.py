@@ -10,20 +10,11 @@ import re
 from qrp.analysis.ablation_controller import AblationController
 
 
-def extract_answer(text):
-    if "####" in text:
-        ans = text.split("####")[-1].strip()
-        ans = re.sub(r"[^\d\.-]", "", ans)
-        return ans
-    
-    numbers = re.findall(r"-?\d+", text)
-    if numbers:
-        return numbers[-1]
-    return ""
+import math
 
 def evaluate_gsm8k(controller, dataset, max_new_tokens=256):
-    correct = 0
-    total = len(dataset)
+    total_loss = 0.0
+    valid_samples = 0
     
     model = controller.model
     tokenizer = controller.tokenizer
@@ -32,27 +23,27 @@ def evaluate_gsm8k(controller, dataset, max_new_tokens=256):
     
     for item in tqdm(dataset, desc="Evaluating GSM8K", leave=False):
         question = item["question"]
-        expected_ans = extract_answer(item["answer"])
+        expected_ans = item["answer"]
         
         prompt = f"Question: {question}\nAnswer: Let's think step by step\n"
-        inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
+        
+        prompt_ids = tokenizer.encode(prompt)
+        target_ids = tokenizer.encode(expected_ans, add_special_tokens=False)
+        
+        input_ids = torch.tensor([prompt_ids + target_ids]).to(model.device)
+        labels = torch.tensor([[-100] * len(prompt_ids) + target_ids]).to(model.device)
         
         with torch.no_grad():
-            outputs = model.generate(
-                **inputs,
-                max_new_tokens=max_new_tokens,
-                temperature=0.0,
-                do_sample=False,
-                pad_token_id=tokenizer.eos_token_id
-            )
+            outputs = model(input_ids, labels=labels)
+            loss = outputs.loss.item()
             
-        generated_text = tokenizer.decode(outputs[0][inputs.input_ids.shape[1]:], skip_special_tokens=True)
-        pred_ans = extract_answer(generated_text)
-        
-        if pred_ans == expected_ans and expected_ans != "":
-            correct += 1
+        if not math.isnan(loss):
+            total_loss += loss
+            valid_samples += 1
             
-    return correct / total if total > 0 else 0
+    avg_loss = total_loss / valid_samples if valid_samples > 0 else float('inf')
+    target_prob_score = math.exp(-avg_loss) if avg_loss != float('inf') else 0.0
+    return target_prob_score
 
 
 def main():
@@ -95,7 +86,7 @@ def main():
     
     print("\nEvaluating Baseline (No Ablation)")
     baseline_acc = evaluate_gsm8k(controller, eval_dataset)
-    print(f"Baseline Accuracy: {baseline_acc:.2%}")
+    print(f"Baseline Target Prob: {baseline_acc:.2%}")
     
     results = {
         "baseline_accuracy": baseline_acc,
@@ -115,7 +106,7 @@ def main():
         results["bottom_20_ablation"].append((len(current_ablation_list), acc))
         
         controller.restoreLayers()
-        print(f"Accuracy: {acc:.2%}")
+        print(f"Target Prob: {acc:.2%}")
         
     print("\n--- Progressively Ablating Top 20% Layers ---")
     current_ablation_list = []
@@ -129,7 +120,7 @@ def main():
         results["top_20_ablation"].append((len(current_ablation_list), acc))
         
         controller.restoreLayers()
-        print(f"Accuracy: {acc:.2%}")
+        print(f"Target Prob: {acc:.2%}")
         
     ablation_out_dir = os.path.join(base_dir, "ablation")
     os.makedirs(ablation_out_dir, exist_ok=True)
@@ -151,9 +142,9 @@ def main():
     plt.plot(x_top, y_top, marker='x', linestyle='--', color='red', label='Removing Top 20% (Highest Thinking)')
     plt.axhline(y=baseline_acc, color='gray', linestyle=':', label='Baseline Performance')
     
-    plt.title('GSM8K Accuracy vs Number of Layers Ablated')
+    plt.title('GSM8K Target Prob vs Number of Layers Ablated')
     plt.xlabel('Number of Layers Ablated')
-    plt.ylabel('Exact Match Accuracy')
+    plt.ylabel('Target Prob (exp(-loss))')
     plt.grid(True, alpha=0.3)
     plt.legend()
     plt.xticks(range(0, twenty_percent_count + 1))
