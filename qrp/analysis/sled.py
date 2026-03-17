@@ -13,28 +13,46 @@ class SLED_Decoded:
         self.lm_head = self.model.get_output_embeddings()
         
     def load_model(self, model_name):
-        model = AutoModelForCausalLM.from_pretrained(model_name)
         tokenizer = AutoTokenizer.from_pretrained(model_name)
+        model = AutoModelForCausalLM.from_pretrained(
+            model_name, 
+            torch_dtype=torch.bfloat16,
+            device_map=self.device
+        )
         return model, tokenizer
 
-    def kl_between_current_prev(self, prompt):  # model logits per token)
-
+    def kl_between_current_prev(self, prompt):
         input_tkns = self.tokenizer(prompt, return_tensors="pt").to(self.device)
         with torch.no_grad():
             output = self.model(**input_tkns, output_hidden_states=True).hidden_states
+        
+        norm = getattr(self.model.model, "norm", None)
+        lm_head = self.model.lm_head
+        
         kl_values = []
-
+        
+        last_hidden = output[-1]
+        if norm is not None:
+            last_hidden = norm(last_hidden)
+        last_logits = lm_head(last_hidden)
+        
         for i in range(1, len(output)):
-            logits_prev = self.model(inputs_embeds=output[i - 1]).logits
-            logits_curr = self.model(inputs_embeds=output[i]).logits
+            h_prev = output[i-1]
+            h_curr = output[i]
             
-
+            if norm is not None:
+                h_prev = norm(h_prev)
+                h_curr = norm(h_curr)
+            
+            logits_prev = lm_head(h_prev)
+            logits_curr = lm_head(h_curr)
+            
             prev_prob = torch.softmax(logits_prev, dim=-1)
             curr_log_prob = torch.log_softmax(logits_curr, dim=-1)
+            
             kl = torch.nn.functional.kl_div(curr_log_prob, prev_prob, reduction="batchmean")
-            print(f"layer {i} and layer {i - 1}, kl-div: {kl}")
             kl_values.append(kl)
-
+            
         return kl_values
 
     # def kl_between_current_final(self, prompt):
@@ -85,11 +103,11 @@ class SLED_Decoded:
 
     def get_relative_top_filter(self, scores: torch.FloatTensor, relative_top: float = 0.1):
         scores_prob = scores.log_softmax(dim=-1)
-        sorted_logits, sorted_idx = torch.sort(scores_prob, descending=True)
-        min_thresh = sorted_logits[0]
+        sorted_logits, _ = torch.sort(scores_prob, descending=True, dim=-1)
+        min_thresh = sorted_logits[:, 0]
         probs_max = torch.max(scores_prob, dim=-1).values
 
-        probs_thresh = probs_max + np.log(relative_top)
+        probs_thresh = probs_max + torch.tensor(relative_top, device=self.device).log()
         probs_thresh = torch.min(min_thresh, probs_thresh)
         probs_thresh = probs_thresh.unsqueeze(-1)
         return scores_prob < probs_thresh
@@ -99,10 +117,14 @@ class SLED_Decoded:
             input_tkns = self.tokenizer(prompt, return_tensors="pt").to(self.device)
             outputs = self.model(**input_tkns, output_hidden_states=True)
             hidden_states = outputs.hidden_states
+            norm = getattr(self.model.model, "norm", None)
+            lm_head = self.model.lm_head
 
             premature_layers = []
             for h in hidden_states:
-                logits = self.model.lm_head(h)
+                if norm is not None:
+                    h = norm(h)
+                logits = lm_head(h)
                 premature_layers.append(logits)
 
             mature_logits = premature_layers[-1]
@@ -126,10 +148,8 @@ class SLED_Decoded:
 
                 mature_token_logits = mature_logits[:, seq_i, :]
 
-                # add mask
                 mask = self.get_relative_top_filter(mature_token_logits, relative_top=0.1)
 
-                # softmax
                 softmax_mature = torch.nn.functional.softmax(mature_token_logits, dim=-1)
                 softmax_premature = torch.nn.functional.softmax(stacked_premature, dim=-1)
 
@@ -160,13 +180,11 @@ class SLED_Decoded:
 
                 candidate_gradients_expanded = candidate_gradients_expanded.to(self.device, dtype=torch.float32)
 
-                # shape to vocab size
                 vocab_size = candidate_gradients_expanded.shape[-1]
                 flat_mask = mask.flatten()[:vocab_size]
 
                 expanded_mask = flat_mask.view(1, 1, vocab_size).expand_as(candidate_gradients_expanded)
 
-                # if rejected by mask cast aside
                 candidate_gradients_expanded[expanded_mask] = 0.0
                 layer_divergence_expanded[expanded_mask] = 0.0
 
