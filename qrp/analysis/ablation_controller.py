@@ -14,10 +14,6 @@ class AblationController:
         self.layerCount = len(self.model.model.layers)
 
     def ablateLayer(self, layer_indices):
-        """
-        layer_indices can be a single int or a list of ints representing
-        the indices of the layers to remove.
-        """
         if isinstance(layer_indices, int):
             layer_indices = [layer_indices]
             
