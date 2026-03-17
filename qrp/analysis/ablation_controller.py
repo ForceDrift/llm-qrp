@@ -13,14 +13,24 @@ class AblationController:
         )
         self.layerCount = len(self.model.model.layers)
 
-    def ablateLayer(self, layer_idx):
-        if 0 <= layer_idx < self.layerCount:
-            self._original_layers = self.model.model.layers
-            new_layers = nn.ModuleList([l for i, l in enumerate(self._original_layers) if i != layer_idx])
-            self.model.model.layers = new_layers
-            return self.model
-        else:
-            raise ValueError(f"Invalid layer index: {layer_idx}")
+    def ablateLayer(self, layer_indices):
+        """
+        layer_indices can be a single int or a list of ints representing
+        the indices of the layers to remove.
+        """
+        if isinstance(layer_indices, int):
+            layer_indices = [layer_indices]
+            
+        invalid_indices = [idx for idx in layer_indices if not (0 <= idx < self.layerCount)]
+        if invalid_indices:
+            raise ValueError(f"Invalid layer indices: {invalid_indices}")
+            
+        self._original_layers = list(self.model.model.layers)
+        new_layers = nn.ModuleList([
+            l for i, l in enumerate(self._original_layers) if i not in layer_indices
+        ])
+        self.model.model.layers = new_layers
+        return self.model
 
     def restoreLayers(self):
         if hasattr(self, "_original_layers"):
