@@ -201,3 +201,51 @@ class SLED_Decoded:
                 sorted_idx = torch.argsort(probs, descending=True)
                 ranking.append({layer_idx: sorted_idx})
         return ranking
+    @torch.no_grad()
+
+    def sled_step(self, input_ids, evolution_scale=10, evolution_rate=2, candidate_layers=None):
+        """
+        Perform a single SLED decoding step.
+        Uses disagreement signals to re-rank tokens.
+        """
+        if candidate_layers is None:
+            candidate_layers = list(range(4, self.layers - 1, 4))
+
+        outputs = self.model(input_ids, output_hidden_states=True)
+        mature_logits = self.model.lm_head(outputs.hidden_states[-1][:, -1, :]) # [1, vocab]
+        
+        premature_layers = []
+        for h in outputs.hidden_states:
+            logits = self.model.lm_head(h[:, -1, :])
+            premature_layers.append(logits)
+
+        stacked_premature = torch.stack([premature_layers[idx] for idx in candidate_layers]).squeeze(1) # [num_cand, vocab]
+        # softmax
+        softmax_mature = F.softmax(mature_logits, dim=-1)
+        softmax_premature = F.softmax(stacked_premature, dim=-1)
+
+        # divergence
+        log_premature = F.log_softmax(stacked_premature, dim=-1)
+        log_mature = F.log_softmax(mature_logits, dim=-1)
+        divergence = log_premature - log_mature.unsqueeze(0)
+        adjustment = torch.zeros_like(mature_logits)
+
+        for i in range(len(candidate_layers)):
+            adjustment += (log_mature - log_premature[i])
+            
+        return mature_logits + (evolution_rate * (adjustment / len(candidate_layers)))
+
+    @torch.no_grad()
+    def generate(self, prompt, max_new_tokens=128, evolution_scale=10, evolution_rate=2, candidate_layers=None):
+        input_ids = self.tokenizer(prompt, return_tensors="pt").input_ids.to(self.device)
+        
+        for _ in range(max_new_tokens):
+            logits = self.sled_step(input_ids, evolution_scale, evolution_rate, candidate_layers)
+            
+            next_token_id = torch.argmax(logits, dim=-1).unsqueeze(0)
+            input_ids = torch.cat([input_ids, next_token_id], dim=-1)
+            
+            if next_token_id.item() == self.tokenizer.eos_token_id:
+                break
+                
+        return self.tokenizer.decode(input_ids[0], skip_special_tokens=True)

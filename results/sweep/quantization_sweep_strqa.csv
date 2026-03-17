@@ -1,0 +1,5 @@
+condition,threshold,bit_width,num_layers_quantized,accuracy,accuracy_drop,elapsed_sec
+baseline,,,0,0.0,0.0,57.5
+"threshold=0.20, bit_width=4",0.2,4,0,0.0,0.0,48.6
+"threshold=0.30, bit_width=4",0.3,4,23,0.0,0.0,83.4
+"threshold=0.40, bit_width=4",0.4,4,29,0.0,0.0,94.5

@@ -11,8 +11,9 @@ def loadAndAggregate(resultsPath: str) -> dict[str, float]:
     layerSums: dict[str, float] = {}
     layerCounts: dict[str, int] = {}
 
-    for sampleKey, sampleVal in data.items():
-        result = sampleVal["result"]
+    # data is a list of dicts: [{"id": 0, "analysis": {...}}, ...]
+    for sample in data:
+        result = sample["analysis"]
 
         for layerKey, score in result.items():
             if layerKey not in layerSums:
