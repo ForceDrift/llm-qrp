@@ -1,12 +1,3 @@
-"""
-Multi-dataset benchmark: BF16 baseline vs. optimal mixed-precision model.
-
-Evaluates both models on each requested dataset and writes:
-  - benchmark_results.csv   — spreadsheet-ready table
-  - benchmark_results.tex   — LaTeX booktabs table (paper-ready)
-  - multi_dataset_benchmark.json — full raw results
-"""
-
 import os
 import csv
 import argparse
@@ -20,9 +11,6 @@ from tqdm import tqdm
 from qrp.quantize.quantizer import TargetedQuantizer
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Dataset registry
-# ──────────────────────────────────────────────────────────────────────────────
 
 DATASET_REGISTRY = {
     "gsm8k": {
@@ -43,7 +31,7 @@ DATASET_REGISTRY = {
         "hf_path": ("cais/mmlu", "all"),
         "split": "test",
         "question_key": "question",
-        "answer_key": "answer",   # int (0-3) mapped to choice text below
+        "answer_key": "answer",   
         "display": "MMLU",
     },
 }
@@ -64,12 +52,8 @@ def load_eval_pairs(dataset_key, n_samples):
     return pairs
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Evaluation
-# ──────────────────────────────────────────────────────────────────────────────
 
 def evaluate_dataset(model, tokenizer, pairs, dataset_key):
-    """Compute target probability exp(-avg_cross_entropy_loss)."""
     model.eval()
     total_loss = 0.0
     valid = 0
@@ -100,12 +84,8 @@ def evaluate_dataset(model, tokenizer, pairs, dataset_key):
     return math.exp(-total_loss / valid)
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Size estimation
-# ──────────────────────────────────────────────────────────────────────────────
 
 def estimate_size(model, layer_configs, num_layers):
-    """Estimate total quantized-layer parameter size in bytes."""
     bytes_per_param = {"bf16": 2.0, "8bit": 1.0, "4bit": 0.5}
     attn_projs = ["q_proj", "k_proj", "v_proj", "o_proj"]
     mlp_projs  = ["gate_proj", "up_proj", "down_proj"]
@@ -122,16 +102,8 @@ def estimate_size(model, layer_configs, num_layers):
     return total
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Table writers
-# ──────────────────────────────────────────────────────────────────────────────
 
 def write_csv(rows, dataset_displays, path):
-    """
-    Wide CSV with one row per model variant (matching the image layout):
-
-    Model, Size (MB), GSM8K, TruthfulQA, ..., Eff (GSM8K), ...
-    """
     ds_cols   = [d for d in dataset_displays]
     eff_cols  = [f"Eff {d}" for d in dataset_displays]
     fieldnames = ["Model", "Size (MB)", "Compression"] + ds_cols + eff_cols
@@ -162,7 +134,7 @@ def write_latex(rows, dataset_displays, model_name, path):
     \\end{table}
     """
     n_ds = len(dataset_displays)
-    col_spec = "l" + "r" * (2 + n_ds)   # Model, Size, Compression, then one per dataset
+    col_spec = "l" + "r" * (2 + n_ds)   
 
     ds_header  = " & ".join(dataset_displays)
     eff_header = " & ".join(f"Eff ({d})" for d in dataset_displays)
@@ -199,16 +171,12 @@ def write_latex(rows, dataset_displays, model_name, path):
 
     print(f"  Saved LaTeX → {path}")
 
-    # Also print to console so it's immediately visible
     print()
     print("  ── LaTeX table preview ──────────────────────────────────")
     print("\n".join("  " + l for l in lines))
     print("  ─────────────────────────────────────────────────────────")
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Main
-# ──────────────────────────────────────────────────────────────────────────────
 
 def main():
     parser = argparse.ArgumentParser(
@@ -259,7 +227,6 @@ def main():
     print(f"  Optimal:  {opt_desc}")
     print(f"{'='*65}\n")
 
-    # Load model
     print("Loading model (BF16)...")
     quantizer  = TargetedQuantizer(args.model_name)
     num_layers = quantizer.num_layers
@@ -268,7 +235,6 @@ def main():
     baseline_size_mb = baseline_size / 1e6
     print(f"Baseline layer size:  {baseline_size_mb:.2f} MB")
 
-    # Measure quantized size
     quantizer.quantize_layers(opt_layer_configs)
     opt_size    = estimate_size(quantizer.model, opt_layer_configs, num_layers)
     opt_size_mb = opt_size / 1e6
@@ -277,7 +243,6 @@ def main():
     print(f"Optimal layer size:   {opt_size_mb:.2f} MB  ({size_reduction_pct:.1f}% smaller, {compression:.2f}x)")
     quantizer.restore()
 
-    # ── Evaluate each dataset ──────────────────────────────────────
     ds_results = {}
     dataset_displays = [DATASET_REGISTRY[k]["display"] for k in dataset_keys]
 
@@ -312,7 +277,6 @@ def main():
             "eff_gain_pct": eff_gain,
         }
 
-    # ── Build wide table rows (one row per model variant) ──────────
     baseline_row = {
         "Model":         model_label_base,
         "Size (MB)":     baseline_size_mb,
@@ -332,7 +296,6 @@ def main():
 
     table_rows = [baseline_row, opt_row]
 
-    # ── Print console summary ──────────────────────────────────────
     print(f"\n{'='*75}")
     print("  RESULTS SUMMARY")
     print(f"{'='*75}")
@@ -357,7 +320,6 @@ def main():
         gain_str = f"+{r['eff_gain_pct']:.1f}%" if r['eff_gain_pct'] >= 0 else f"{r['eff_gain_pct']:.1f}%"
         print(f"  {r['display']:<12} Acc drop: {drop_str:>6}   Efficiency gain: {gain_str}")
 
-    # ── Save outputs ───────────────────────────────────────────────
     os.makedirs(quantize_dir, exist_ok=True)
 
     csv_path = os.path.join(quantize_dir, "benchmark_results.csv")
