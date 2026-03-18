@@ -91,13 +91,11 @@ def main():
         results["performance_8bit"].append((pct, acc_8))
         print(f"8-bit Prob: {acc_8:.2%}")
         
-        # 4-bit
         quantizer.quantize_layers({idx: "4bit" for idx in target_layers})
         acc_4 = evaluate_gsm8k(quantizer.model, quantizer.tokenizer, eval_dataset)
         results["performance_4bit"].append((pct, acc_4))
         print(f"4-bit Prob: {acc_4:.2%}")
         
-        # Mixed (bottom half 4-bit, upper half 8-bit)
         mixed_configs = {}
         half_idx = len(target_layers) // 2
         for i, idx in enumerate(target_layers):
