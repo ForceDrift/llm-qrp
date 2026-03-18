@@ -78,15 +78,12 @@ def estimate_model_size(model, layer_configs, num_layers):
 
 def generate_candidate_configs(sorted_layers, num_layers):
     """
-    Generate candidate mixed-precision configs by sweeping percentile-based
-    threshold pairs (pct_4bit, pct_8bit) where pct_4bit <= pct_8bit.
-
     For each pair:
       - Bottom pct_4bit% of layers (by score) -> 4-bit
       - Next (pct_8bit - pct_4bit)% of layers -> 8-bit
       - Remaining layers -> BF16
     """
-    percentiles = list(range(0, 101, 10))  # 0%, 10%, 20%, ..., 100%
+    percentiles = list(range(0, 101, 10))  
     candidates = []
 
     for p4 in percentiles:
@@ -103,7 +100,6 @@ def generate_candidate_configs(sorted_layers, num_layers):
                     config[layer_idx] = "4bit"
                 elif rank < n8:
                     config[layer_idx] = "8bit"
-                # else: bf16 (not in config dict = unchanged)
 
             candidates.append({
                 "pct_4bit": p4,

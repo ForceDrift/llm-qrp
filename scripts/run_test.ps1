@@ -1,7 +1,8 @@
 param (
     [string]$MODEL_NAME = "HuggingFaceTB/SmolLM2-135M",
     [string]$OUTPUT_FOLDER = "D:/Downloads/Results",
-    [int]$SAMPLES = 1
+    [int]$SAMPLES = 1,
+    [string]$DATASETS = "gsm8k,tfqa"
 )
 
 $ErrorActionPreference = "Stop"
@@ -18,3 +19,4 @@ if (-Not (Test-Path $PYTHON_EXE)) {
 & $PYTHON_EXE -m qrp.quantize.find_optimal_mixed_precision --model-name $MODEL_NAME --output-folder $OUTPUT_FOLDER --samples $SAMPLES
 & $PYTHON_EXE -m qrp.quantize.export_quantized_model --model-name $MODEL_NAME --output-folder $OUTPUT_FOLDER --threshold-4bit 1.0 --threshold-8bit 1.5
 & $PYTHON_EXE -m qrp.quantize.run_compression_report --model-name $MODEL_NAME --output-folder $OUTPUT_FOLDER
+& $PYTHON_EXE -m qrp.quantize.run_multi_dataset_benchmark --model-name $MODEL_NAME --output-folder $OUTPUT_FOLDER --samples $SAMPLES --datasets $DATASETS
