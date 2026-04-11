@@ -1,15 +1,15 @@
-import os
-import csv
 import argparse
+import csv
 import json
 import math
+import os
 
 import torch
 from datasets import load_dataset
 from tqdm import tqdm
 
+from qrp.model_mapper import get_layer_structure, get_model_layers
 from qrp.quantize.quantizer import TargetedQuantizer
-
 
 
 DATASET_REGISTRY = {
@@ -38,7 +38,6 @@ DATASET_REGISTRY = {
 
 
 def load_eval_pairs(dataset_key, n_samples):
-    """Return list of (question_str, answer_str) pairs."""
     cfg = DATASET_REGISTRY[dataset_key]
     ds = load_dataset(*cfg["hf_path"], split=cfg["split"])
     pairs = []
@@ -50,7 +49,6 @@ def load_eval_pairs(dataset_key, n_samples):
             a = choices[int(a)] if choices else str(a)
         pairs.append((str(q), str(a)))
     return pairs
-
 
 
 def evaluate_dataset(model, tokenizer, pairs, dataset_key):
@@ -84,23 +82,29 @@ def evaluate_dataset(model, tokenizer, pairs, dataset_key):
     return math.exp(-total_loss / valid)
 
 
-
 def estimate_size(model, layer_configs, num_layers):
     bytes_per_param = {"bf16": 2.0, "8bit": 1.0, "4bit": 0.5}
-    attn_projs = ["q_proj", "k_proj", "v_proj", "o_proj"]
-    mlp_projs  = ["gate_proj", "up_proj", "down_proj"]
     total = 0.0
+    layers = get_model_layers(model)
     for idx in range(num_layers):
-        layer = model.model.layers[idx]
-        params = (
-            sum(getattr(layer.self_attn, n).weight.numel()
-                for n in attn_projs if hasattr(layer.self_attn, n))
-            + sum(getattr(layer.mlp, n).weight.numel()
-                  for n in mlp_projs if hasattr(layer.mlp, n))
-        )
+        layer = layers[idx]
+        (attn_parent, attn_projs), (mlp_parent, mlp_projs) = get_layer_structure(layer)
+        
+        params = 0
+        if attn_parent is not None:
+            for n in attn_projs:
+                proj = getattr(attn_parent, n, None)
+                if proj is not None and hasattr(proj, 'weight'):
+                    params += proj.weight.numel()
+        
+        if mlp_parent is not None:
+            for n in mlp_projs:
+                proj = getattr(mlp_parent, n, None)
+                if proj is not None and hasattr(proj, 'weight'):
+                    params += proj.weight.numel()
+                    
         total += params * bytes_per_param.get(layer_configs.get(idx, "bf16"), 2.0)
     return total
-
 
 
 def write_csv(rows, dataset_displays, path):
@@ -114,28 +118,10 @@ def write_csv(rows, dataset_displays, path):
         for row in rows:
             writer.writerow(row)
 
-    print(f"  Saved CSV  → {path}")
-
 
 def write_latex(rows, dataset_displays, model_name, path):
-    """
-    LaTeX booktabs table — paper-ready, matching the image layout.
-
-    \\begin{table}
-      \\caption{...}
-      \\begin{tabular}{lcc...}
-        \\toprule
-        Model & Size & GSM8K & TruthfulQA & ... \\\\
-        \\midrule
-        SmolLM2 (BF16)        & 134.6 MB & 0.0961 & 0.1243 & ... \\\\
-        +LLM-QRP (quantized)  &  60.3 MB & 0.0961 & 0.1231 & ... \\\\
-        \\bottomrule
-      \\end{tabular}
-    \\end{table}
-    """
     n_ds = len(dataset_displays)
     col_spec = "l" + "r" * (2 + n_ds)   
-
     ds_header  = " & ".join(dataset_displays)
     eff_header = " & ".join(f"Eff ({d})" for d in dataset_displays)
 
@@ -169,19 +155,10 @@ def write_latex(rows, dataset_displays, model_name, path):
     with open(path, "w") as f:
         f.write("\n".join(lines) + "\n")
 
-    print(f"  Saved LaTeX → {path}")
-
-    print()
-    print("  ── LaTeX table preview ──────────────────────────────────")
-    print("\n".join("  " + l for l in lines))
-    print("  ─────────────────────────────────────────────────────────")
-
-
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Multi-dataset benchmark: BF16 vs optimal mixed-precision model. "
-                    "Produces CSV and LaTeX tables."
+        description="Multi-dataset benchmark: BF16 vs optimal mixed-precision model."
     )
     parser.add_argument("--model-name", type=str, default="HuggingFaceTB/SmolLM2-135M")
     parser.add_argument("--output-folder", type=str, required=True)
@@ -212,9 +189,8 @@ def main():
 
     optimal          = opt_data["optimal_config"]
     opt_layer_configs = {int(k): v for k, v in optimal["layer_configs"].items()}
-
-    short_name  = args.model_name.split("/")[-1]   # e.g. SmolLM2-135M
-    model_label_base = short_name                   # "SmolLM2-135M"
+    short_name  = args.model_name.split("/")[-1]   
+    model_label_base = short_name                   
     model_label_opt  = f"+LLM-QRP (quantized)"
 
     print(f"\n{'='*65}")
@@ -230,7 +206,6 @@ def main():
     print("Loading model (BF16)...")
     quantizer  = TargetedQuantizer(args.model_name)
     num_layers = quantizer.num_layers
-
     baseline_size    = estimate_size(quantizer.model, {}, num_layers)
     baseline_size_mb = baseline_size / 1e6
     print(f"Baseline layer size:  {baseline_size_mb:.2f} MB")
@@ -321,10 +296,8 @@ def main():
         print(f"  {r['display']:<12} Acc drop: {drop_str:>6}   Efficiency gain: {gain_str}")
 
     os.makedirs(quantize_dir, exist_ok=True)
-
     csv_path = os.path.join(quantize_dir, "benchmark_results.csv")
     tex_path = os.path.join(quantize_dir, "benchmark_results.tex")
-
     write_csv(table_rows, dataset_displays, csv_path)
     write_latex(table_rows, dataset_displays, args.model_name, tex_path)
 
@@ -350,8 +323,8 @@ def main():
                 for k, v in ds_results.items()
             },
         }, f, indent=2)
-    print(f"  Saved JSON → {json_path}")
 
 
 if __name__ == "__main__":
     main()
+

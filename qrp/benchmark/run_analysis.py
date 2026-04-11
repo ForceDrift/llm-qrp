@@ -1,22 +1,22 @@
-import os
-import torch
-import numpy as np
-from collections import defaultdict
 import argparse
 import json
+import os
+from collections import defaultdict
+
+import numpy as np
+import torch
 from datasets import load_dataset
 from tqdm import tqdm
 
-from qrp.analysis.sled import SLED_Decoded
 from qrp.analysis.entropy_by_layer import EntropyByLayer
+from qrp.analysis.sled import SLED_Decoded
+
 
 class SLEDEntropyAnalyzer:
-
     def __init__(self, model_name="HuggingFaceTB/SmolLM2-360M", dataset="gsm8k"):
         self.model_name = model_name
         self.dataset = dataset
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-
         self.sled_model = SLED_Decoded(model_name, self.device)
         self.entropy_model = EntropyByLayer(model_name, device=self.device)
 
@@ -34,7 +34,6 @@ class SLEDEntropyAnalyzer:
 
     def run(self, prompt):
         layers_to_test = list(range(self.sled_model.layers))
-
         disagreement_results = self.sled_model.layer_disagreement(
             prompt,
             evolution_scale=5,
@@ -78,7 +77,6 @@ class SLEDEntropyAnalyzer:
 
 
 def load_prompts(dataset_name):
-    
     if dataset_name == "gsm8k":
         ds = load_dataset("gsm8k", "main", split="test")
         return [x["question"] for x in ds]
@@ -108,6 +106,7 @@ def aggregate_scores(results_data, output_file):
         
     with open(output_file, "w") as f:
         json.dump(avg_scores, f, indent=2)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run SLED Entropy Analysis")
@@ -146,4 +145,4 @@ if __name__ == "__main__":
     root_dir = os.path.join(args.output_folder, model_name_safe)
     aggregated_file = os.path.join(root_dir, "aggregated_scores.json")
     aggregate_scores(results, aggregated_file)
-    print(f"Aggregated scores saved to: {aggregated_file}")
+    print(f"Aggregated scores saved to: {aggregated_file}")

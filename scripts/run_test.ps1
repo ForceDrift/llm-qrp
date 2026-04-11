@@ -1,6 +1,6 @@
 #models to use {}
 param (
-    [string]$OUTPUT_FOLDER = "D:/Downloads/Results",
+    [string]$OUTPUT_FOLDER = "./results",
     [int]$SAMPLES = 1,
     [string]$DATASETS = "gsm8k,tfqa"
 )

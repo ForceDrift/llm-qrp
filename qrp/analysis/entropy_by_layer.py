@@ -4,6 +4,7 @@ import torch.nn.functional as F
 import bitsandbytes
 from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer
+from qrp.model_mapper import get_model_layers, get_layer_structure
 
 class EntropyByLayer:
     def __init__(self, modelId, device="auto"):
@@ -11,11 +12,13 @@ class EntropyByLayer:
         self.tokenizer = AutoTokenizer.from_pretrained(modelId)
         self.model = AutoModelForCausalLM.from_pretrained(
             modelId, 
-            torch_dtype=torch.bfloat16
+            torch_dtype=torch.bfloat16,
+            trust_remote_code=True
         )
         if device != "auto":
             self.model.to(device)
-        self.numLayers = len(self.model.model.layers)
+        self.layers = get_model_layers(self.model)
+        self.numLayers = len(self.layers)
 
     def _calculateMetrics(self, currentLogits, baselineProbs):
         logits32 = currentLogits.detach().to(torch.float32)
@@ -36,18 +39,20 @@ class EntropyByLayer:
 
         levResults = []
         for i in tqdm(range(self.numLayers)):
-            targetLayer = self.model.model.layers[i]
-            
+            targetLayer = self.layers[i]
             layerBackup = copy.deepcopy(targetLayer)
-            
+            (attn_parent, attn_projs), (mlp_parent, mlp_projs) = get_layer_structure(targetLayer)
             targetModules = {
-                "attn": ["q_proj", "k_proj", "v_proj", "o_proj"], 
-                "mlp": ["gate_proj", "up_proj", "down_proj"]
+                "attn": (attn_parent, attn_projs), 
+                "mlp": (mlp_parent, mlp_projs)
             }
 
-            for moduleType, projNames in targetModules.items():
-                parent = targetLayer.self_attn if moduleType == "attn" else targetLayer.mlp
+            for moduleType, (parent, projNames) in targetModules.items():
+                if parent is None:
+                    continue
                 for x in projNames:
+                    if not hasattr(parent, x):
+                        continue
                     oldProj = getattr(parent, x)
                     newProj = bitsandbytes.nn.modules.Linear4bit(
                         oldProj.in_features, 
@@ -76,4 +81,4 @@ class EntropyByLayer:
             })
             self.model.model.layers[i] = layerBackup
 
-        return levResults
+        return levResults

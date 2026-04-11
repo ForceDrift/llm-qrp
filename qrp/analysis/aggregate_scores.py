@@ -1,8 +1,6 @@
-# modification of https://github.com/voidism/DoLa/blob/main/dola.py
-
 import json
-
-from pathlib import Path #  for file
+import os
+from pathlib import Path
 
 
 def loadAndAggregate(resultsPath: str) -> dict[str, float]:
@@ -13,7 +11,6 @@ def loadAndAggregate(resultsPath: str) -> dict[str, float]:
 
     for sampleKey, sampleVal in data.items():
         result = sampleVal["result"]
-
         for layerKey, score in result.items():
             if layerKey not in layerSums:
                 layerSums[layerKey] = 0.0
@@ -27,15 +24,14 @@ def loadAndAggregate(resultsPath: str) -> dict[str, float]:
     }
     return avgScores
 
+
 def getSortedLayers(avgScores: dict[str, float]) -> list[tuple[int, float]]:
     parsed = []
     for layerKey, score in avgScores.items():
         layerIdx = int(layerKey.split("_")[1])
-
         parsed.append((layerIdx, score))
 
     return sorted(parsed, key=lambda x: x[1])
-
 
 
 def saveAggregated(avgScores: dict[str, float], sortedLayers: list[tuple[int, float]], outPath: str) -> None:
@@ -46,9 +42,9 @@ def saveAggregated(avgScores: dict[str, float], sortedLayers: list[tuple[int, fl
     }
     with open(outPath, "w") as f:
         json.dump(output, f, indent=2)
-    print(outPath)  
+
+
 if __name__ == "__main__":
-    import os
     script_dir = os.path.dirname(os.path.abspath(__file__))
     repo_root = os.path.abspath(os.path.join(script_dir, "..", ".."))
     
@@ -59,6 +55,5 @@ if __name__ == "__main__":
     sortedLayers = getSortedLayers(avgScores)
     saveAggregated(avgScores, sortedLayers, outPath)
 
-    print(" ---- ascedning order ----")
     for layerIdx, score in sortedLayers:
         print(f"layer {layerIdx}: {score}")

@@ -4,7 +4,7 @@
 # Example: ./scripts/run_pipeline.sh HuggingFaceTB/SmolLM2-135M D:/Downloads/Results 100
 
 MODEL_NAME=${1:-"HuggingFaceTB/SmolLM2-135M"}
-OUTPUT_FOLDER=${2:-"D:/Downloads/Results"}
+OUTPUT_FOLDER=${2:-"./results"}
 SAMPLES=${3:-1}
 
 # Array of datasets to iterate over

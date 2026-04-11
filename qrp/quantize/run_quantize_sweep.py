@@ -1,13 +1,15 @@
-import os
 import argparse
 import json
-import torch
 import math
+import os
+
+import matplotlib.pyplot as plt
+import torch
 from datasets import load_dataset
 from tqdm import tqdm
-import matplotlib.pyplot as plt
 
 from qrp.quantize.quantizer import TargetedQuantizer
+
 
 def evaluate_gsm8k(model, tokenizer, dataset):
     total_loss = 0.0
@@ -17,12 +19,9 @@ def evaluate_gsm8k(model, tokenizer, dataset):
     for item in tqdm(dataset, desc="Evaluating GSM8K", leave=False):
         question = item["question"]
         expected_ans = item["answer"]
-        
         prompt = f"Question: {question}\nAnswer: Let's think step by step\n"
-        
         prompt_ids = tokenizer.encode(prompt)
         target_ids = tokenizer.encode(expected_ans, add_special_tokens=False)
-        
         input_ids = torch.tensor([prompt_ids + target_ids]).to(model.device)
         labels = torch.tensor([[-100] * len(prompt_ids) + target_ids]).to(model.device)
         
@@ -38,12 +37,12 @@ def evaluate_gsm8k(model, tokenizer, dataset):
     target_prob_score = math.exp(-avg_loss) if avg_loss != float('inf') else 0.0
     return target_prob_score
 
+
 def main():
     parser = argparse.ArgumentParser(description="Empirical Threshold Testing for Quantization on lowest-scoring layers")
     parser.add_argument("--model-name", type=str, default="HuggingFaceTB/SmolLM2-135M", help="Model name evaluated")
     parser.add_argument("--output-folder", type=str, required=True, help="Base folder where aggregated scores are saved")
     parser.add_argument("--samples", type=int, default=10, help="Number of questions to evaluate for probability")
-    
     args = parser.parse_args()
     
     model_name_safe = args.model_name.replace("/", "_")
@@ -59,7 +58,6 @@ def main():
     sorted_layers = sorted(scores.items(), key=lambda item: item[1])
     sorted_layer_indices = [int(key.split("_")[1]) for key, val in sorted_layers]
     num_layers = len(sorted_layer_indices)
-    
     thresholds = [10, 20, 30, 40, 50]
     
     print("\nLoading dataset and running baseline quantizer...")
@@ -85,7 +83,6 @@ def main():
         print(f"\n--- Testing Threshold: Bottom {pct}% ({layer_count} layers) ---")
         print(f"Layers to quantize: {target_layers}")
         
-        # 8-bit
         quantizer.quantize_layers({idx: "8bit" for idx in target_layers})
         acc_8 = evaluate_gsm8k(quantizer.model, quantizer.tokenizer, eval_dataset)
         results["performance_8bit"].append((pct, acc_8))
@@ -112,9 +109,7 @@ def main():
     with open(json_path, "w") as f:
         json.dump(results, f, indent=2)
         
-    print("\nGenerating Empirical Quantization Graph...")
     plt.figure(figsize=(10, 6))
-    
     x_bits = [0] + [x[0] for x in results["performance_8bit"]]
     y_8 = [baseline_acc] + [x[1] for x in results["performance_8bit"]]
     y_4 = [baseline_acc] + [x[1] for x in results["performance_4bit"]]
@@ -135,9 +130,8 @@ def main():
     img_path = os.path.join(quantize_out_dir, "quantization_empirical_drops.png")
     plt.savefig(img_path, dpi=300, bbox_inches='tight')
     plt.close()
-    
-    print(f"Saved graph to {img_path}")
-    print(f"Saved metrics to {json_path}")
-    
+
+
 if __name__ == "__main__":
     main()
+
