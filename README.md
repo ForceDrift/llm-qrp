@@ -38,7 +38,7 @@ To run the automated analysis, ablation, and quantization benchmark loop across 
 ```
 
 ### Unified Benchmarking
-To test specific decoding methods (VanillaGreedy vs SLED vs DoLa) directly against a dataset:
+To test specific decoding methods directly against a dataset:
 
 ```bash
 ./scripts/run_benchmarks.sh
@@ -58,7 +58,7 @@ If you are adjusting the SLED parameters in your evaluations, consider the follo
 - **Evolution Scale**: Set values of **5, 10, or 20**. 
 
 ## Acknowledgement
-This codebase utilizes analytical metrics inspired by the official repos of [DoLa](https://github.com/voidism/DoLa) and [SLED](https://github.com/JayZhang42/SLED). 
+This codebase utilizes analytical metrics inspired by the official repos of [SLED](https://github.com/JayZhang42/SLED). 
 
 ## Citation
 If you find this repository helpful, please consider citing our work (citation placeholder):
