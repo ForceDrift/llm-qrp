@@ -58,7 +58,7 @@ If you are adjusting the SLED parameters in your evaluations, consider the follo
 - **Evolution Scale**: Set values of **5, 10, or 20**. 
 
 ## Acknowledgement
-This codebase utilizes analytical metrics inspired by the official repos of [SLED](https://github.com/JayZhang42/SLED). 
+This codebase utilizes analytical metrics inspired by the official repos of [SLED](https://github.com/JayZhang42/SLED) and [LLM-AWQ](https://github.com/mit-han-lab/llm-awq). 
 
 ## Citation
 If you find this repository helpful, please consider citing our work (citation placeholder):
