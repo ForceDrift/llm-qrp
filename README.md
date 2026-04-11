@@ -17,6 +17,9 @@ The unofficial/official implementation for tracking and preserving reasoning cap
 
 We introduce a novel mixed-precision quantization methodology. Standard post-training quantization treats all layers uniformly, often crippling a model's multi-step reasoning. LLM-QRP leverages structural entropy and Skip-Layer Evaluation Decoding (SLED) style metrics to measure "thinking intensity" at each layer. Layers with high reasoning density are preserved in high precision (BF16 or 8-bit), while lower-density syntactic layers are pushed to 4-bit, maintaining near-baseline target probabilities with massive memory savings.
 
+<img width="1423" height="569" alt="image" src="https://github.com/user-attachments/assets/b114d9e4-47f0-4208-aae6-f2a0773346b8" />
+
+
 ## 🛠 Installation
 - **Python**: Recommended to use Python 3.10 or higher.
 - **PyTorch**: Recommended PyTorch 2.5.1 with CUDA 12.1.
