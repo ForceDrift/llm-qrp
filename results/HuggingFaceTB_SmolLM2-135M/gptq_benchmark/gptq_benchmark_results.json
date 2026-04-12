@@ -15,13 +15,22 @@
       "estimated_size_mb": 212.33664
     },
     {
-      "config": "Uniform GPTQ-4bit",
+      "config": "Uniform 4-bit",
       "wikitext2_ppl": 36.54207992553711,
       "gsm8k_accuracy": 0.0,
       "gsm8k_correct": 0,
       "gsm8k_total": 1,
       "target_prob": 0.06663353139450674,
       "estimated_size_mb": 53.08416
+    },
+    {
+      "config": "LLM-QRP (20\u00d74bit, 0\u00d78bit, 9\u00d7bf16)",
+      "wikitext2_ppl": 36.38075637817383,
+      "gsm8k_accuracy": 0.0,
+      "gsm8k_correct": 0,
+      "gsm8k_total": 1,
+      "target_prob": 0.06639314000696034,
+      "estimated_size_mb": 106.16832
     }
   ]
 }

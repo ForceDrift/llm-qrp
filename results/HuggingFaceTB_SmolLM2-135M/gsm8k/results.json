@@ -1,0 +1,37 @@
+[
+  {
+    "id": 0,
+    "prompt": "Janet\u2019s ducks lay 16 eggs per day. She eats three for breakfast every morning and bakes muffins for her friends every day with four. She sells the remainder at the farmers' market daily for $2 per fresh duck egg. How much in dollars does she make every day at the farmers' market?",
+    "analysis": {
+      "layer_1": 0.3215454410591696,
+      "layer_2": 0.45600493950047505,
+      "layer_3": 0.3078005804230634,
+      "layer_4": 0.3632153131170295,
+      "layer_5": 0.3209003086926672,
+      "layer_6": 0.3464482734659304,
+      "layer_7": 0.2943818784853146,
+      "layer_8": 0.3295084011012534,
+      "layer_9": 0.3521466156632502,
+      "layer_10": 0.3169882319862469,
+      "layer_11": 0.4698672356597603,
+      "layer_12": 0.42132157462997827,
+      "layer_13": 0.3547359860199244,
+      "layer_14": 0.28435487968141593,
+      "layer_15": 0.3533334916231781,
+      "layer_16": 0.36567558426258984,
+      "layer_17": 0.311661544060155,
+      "layer_18": 0.29683802596160624,
+      "layer_19": 0.2925456382861156,
+      "layer_20": 0.28935571598081233,
+      "layer_21": 0.3683360491633014,
+      "layer_22": 0.2801771220650517,
+      "layer_23": 0.25852866590140466,
+      "layer_24": 0.20103076186758595,
+      "layer_25": 0.2675986738947953,
+      "layer_26": 0.22600789960905124,
+      "layer_27": 0.19390143006901614,
+      "layer_28": 0.3787035543211097,
+      "layer_29": 0.7617327373439756
+    }
+  }
+]

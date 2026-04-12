@@ -1,5 +1,5 @@
 """
-GPTQ Mixed-Precision Benchmark: Compare quantization approaches.
+LLM-QRP Mixed-Precision Benchmark: Compare quantization approaches.
 
 Evaluates three configurations:
   1. BF16 baseline (no quantization)
@@ -75,7 +75,7 @@ def load_qrp_precision_map(aggregated_file, num_layers, pct_bf16=30, pct_8bit=0)
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Compare BF16 vs Uniform GPTQ vs QRP+GPTQ mixed precision"
+        description="Compare BF16 vs Uniform 4-bit vs LLM-QRP mixed precision"
     )
     parser.add_argument("--model-name", type=str,
                         default="HuggingFaceTB/SmolLM2-135M")
@@ -106,7 +106,7 @@ def main():
 
     # ── Load model ──────────────────────────────────────────────────────
     print(f"\n{'='*65}")
-    print(f"  GPTQ MIXED-PRECISION BENCHMARK")
+    print(f"  LLM-QRP MIXED-PRECISION BENCHMARK")
     print(f"  Model: {args.model_name}")
     print(f"{'='*65}\n")
 
@@ -125,12 +125,12 @@ def main():
     # Config 1: BF16 baseline — no quantization
     configs_to_eval["BF16 (baseline)"] = {}
 
-    # Config 2: Uniform GPTQ 4-bit — all layers quantized
-    configs_to_eval["Uniform GPTQ-4bit"] = {
+    # Config 2: Uniform 4-bit — all layers quantized
+    configs_to_eval["Uniform 4-bit"] = {
         i: "4bit" for i in range(num_layers)
     }
 
-    # Config 3: QRP + GPTQ mixed — only if QRP scores exist
+    # Config 3: LLM-QRP mixed — only if QRP scores exist
     if has_qrp_scores:
         qrp_config, sorted_layers = load_qrp_precision_map(
             aggregated_file, num_layers,
@@ -139,13 +139,13 @@ def main():
         n4 = sum(1 for v in qrp_config.values() if v == "4bit")
         n8 = sum(1 for v in qrp_config.values() if v == "8bit")
         n_bf = sum(1 for v in qrp_config.values() if v == "bf16")
-        label = f"QRP+GPTQ ({n4}×4bit, {n8}×8bit, {n_bf}×bf16)"
+        label = f"LLM-QRP ({n4}×4bit, {n8}×8bit, {n_bf}×bf16)"
         configs_to_eval[label] = qrp_config
 
-        print(f"QRP precision map loaded: {n4}×4-bit, {n8}×8-bit, {n_bf}×bf16")
+        print(f"LLM-QRP precision map loaded: {n4}×4-bit, {n8}×8-bit, {n_bf}×bf16")
         print(f"Layer scores: {sorted_layers[0][1]:.4f} — {sorted_layers[-1][1]:.4f}")
     else:
-        print("No QRP scores found — skipping QRP+GPTQ mixed config.")
+        print("No QRP scores found — skipping LLM-QRP mixed config.")
         print(f"(Expected file: {aggregated_file})")
         print("Run the analysis pipeline first, or use --skip-analysis\n")
 
@@ -281,8 +281,8 @@ def _write_latex(results, model_name, path):
     lines = [
         r"\begin{table}[h]",
         r"  \centering",
-        f"  \\caption{{GPTQ Benchmark: {model_name.split('/')[-1]}}}",
-        r"  \label{tab:gptq-benchmark}",
+        f"  \\caption{{LLM-QRP Benchmark: {model_name.split('/')[-1]}}}",
+        r"  \label{tab:llm-qrp-benchmark}",
         r"  \begin{tabular}{lrrrr}",
         r"    \toprule",
         r"    \textbf{Config} & \textbf{Size (MB)} & \textbf{WikiText-2 PPL $\downarrow$} "
