@@ -1,0 +1,27 @@
+{
+  "model_name": "HuggingFaceTB/SmolLM2-135M",
+  "samples": 1,
+  "wikitext_tokens": 256,
+  "group_size": 64,
+  "pct_bf16": 30,
+  "results": [
+    {
+      "config": "BF16 (baseline)",
+      "wikitext2_ppl": 23.072343826293945,
+      "gsm8k_accuracy": 0.0,
+      "gsm8k_correct": 0,
+      "gsm8k_total": 1,
+      "target_prob": 0.09597923627266611,
+      "estimated_size_mb": 212.33664
+    },
+    {
+      "config": "Uniform GPTQ-4bit",
+      "wikitext2_ppl": 36.54207992553711,
+      "gsm8k_accuracy": 0.0,
+      "gsm8k_correct": 0,
+      "gsm8k_total": 1,
+      "target_prob": 0.06663353139450674,
+      "estimated_size_mb": 53.08416
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+\begin{table}[h]
+  \centering
+  \caption{GPTQ Benchmark: SmolLM2-135M}
+  \label{tab:gptq-benchmark}
+  \begin{tabular}{lrrrr}
+    \toprule
+    \textbf{Config} & \textbf{Size (MB)} & \textbf{WikiText-2 PPL $\downarrow$} & \textbf{GSM8K Acc $\uparrow$} & \textbf{Target Prob $\uparrow$} \\
+    \midrule
+    BF16 (baseline) & 212.3 & 23.07 & 0.00% & 0.0960 \\
+    Uniform GPTQ-4bit & 53.1 & 36.54 & 0.00% & 0.0666 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
