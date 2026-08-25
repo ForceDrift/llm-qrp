@@ -1,5 +1,6 @@
 import argparse
 import csv
+import gc
 import json
 import math
 import os
@@ -8,12 +9,13 @@ import torch
 from datasets import load_dataset
 from tqdm import tqdm
 
-from qrp.external.gptq_baseline import (
-    apply_gptq_uniform,
-    build_calibration_batches,
-    estimate_uniform_bits_size_bytes,
-)
 from qrp.model_mapper import get_layer_structure, get_model_layers
+
+
+def _empty_cache():
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
 from qrp.quantize.quantizer import TargetedQuantizer
 
 
@@ -186,6 +188,16 @@ def main():
                         help="Sequence length of each GPTQ calibration sequence")
     parser.add_argument("--gptq-percdamp", type=float, default=0.01,
                         help="GPTQ Hessian damping percentage")
+    parser.add_argument("--with-awq", action="store_true",
+                        help="Also benchmark uniform AWQ as an external baseline")
+    parser.add_argument("--awq-bits", type=int, default=4, choices=[2, 3, 4, 8],
+                        help="Bit width for the AWQ baseline (default: 4)")
+    parser.add_argument("--awq-group-size", type=int, default=128,
+                        help="Quantization group size for the AWQ baseline")
+    parser.add_argument("--awq-samples", type=int, default=32,
+                        help="Number of calibration sequences for AWQ")
+    parser.add_argument("--awq-seqlen", type=int, default=2048,
+                        help="Sequence length of each AWQ calibration sequence")
     args = parser.parse_args()
 
     dataset_keys = [d.strip() for d in args.datasets.split(",")]
@@ -223,6 +235,8 @@ def main():
     print(f"  Optimal:  {opt_desc}")
     if args.with_gptq:
         print(f"  GPTQ:     uniform {args.gptq_bits}-bit external baseline")
+    if args.with_awq:
+        print(f"  AWQ:      uniform {args.awq_bits}-bit external baseline")
     print(f"{'='*65}\n")
 
     print("Loading model (BF16)...")
@@ -257,7 +271,7 @@ def main():
         ("mixed", "Optimal mixed-precision",  opt_layer_configs),
     ]
 
-    gptq_key = None
+    external_baselines = []
     if args.with_gptq:
         gptq_key = f"gptq{args.gptq_bits}"
         gptq_size_mb = estimate_uniform_bits_size_bytes(
@@ -266,6 +280,38 @@ def main():
               f"{gptq_size_mb:.2f} MB "
               f"({(1 - gptq_size_mb / baseline_size_mb) * 100:.1f}% smaller, "
               f"{baseline_size_mb / gptq_size_mb:.2f}x)")
+        external_baselines.append({
+            "key": gptq_key,
+            "label": f"GPTQ ({args.gptq_bits}-bit)",
+            "size_mb": gptq_size_mb,
+            "samples": args.gptq_samples,
+            "seqlen": args.gptq_seqlen,
+            "banner": f"GPTQ BASELINE ({args.gptq_bits}-bit)",
+            "detail": (f"GSM8K train | {args.gptq_samples} x "
+                       f"{args.gptq_seqlen} tokens | percdamp={args.gptq_percdamp}"),
+            "apply": lambda model, calib: apply_gptq_uniform(
+                model, calib, wbits=args.gptq_bits, percdamp=args.gptq_percdamp),
+        })
+    if args.with_awq:
+        awq_key = f"awq{args.awq_bits}"
+        awq_size_mb = estimate_uniform_bits_size_bytes(
+            quantizer.model, num_layers, args.awq_bits) / 1e6
+        print(f"AWQ ({args.awq_bits}-bit) size: "
+              f"{awq_size_mb:.2f} MB "
+              f"({(1 - awq_size_mb / baseline_size_mb) * 100:.1f}% smaller, "
+              f"{baseline_size_mb / awq_size_mb:.2f}x)")
+        external_baselines.append({
+            "key": awq_key,
+            "label": f"AWQ ({args.awq_bits}-bit)",
+            "size_mb": awq_size_mb,
+            "samples": args.awq_samples,
+            "seqlen": args.awq_seqlen,
+            "banner": f"AWQ BASELINE ({args.awq_bits}-bit)",
+            "detail": (f"GSM8K train | {args.awq_samples} x "
+                       f"{args.awq_seqlen} tokens | group_size={args.awq_group_size}"),
+            "apply": lambda model, calib: apply_awq_uniform(
+                model, calib, wbits=args.awq_bits, q_group_size=args.awq_group_size),
+        })
 
     method_sizes_mb = {
         "bf16":  baseline_size_mb,
@@ -273,16 +319,15 @@ def main():
         "int4":  int4_size_mb,
         "mixed": opt_size_mb,
     }
-    if gptq_key is not None:
-        method_sizes_mb[gptq_key] = gptq_size_mb
     method_labels = {
         "bf16":  model_label_base,
         "int8":  "Uniform INT8",
         "int4":  "Uniform INT4",
         "mixed": model_label_opt,
     }
-    if gptq_key is not None:
-        method_labels[gptq_key] = f"GPTQ ({args.gptq_bits}-bit)"
+    for spec in external_baselines:
+        method_sizes_mb[spec["key"]] = spec["size_mb"]
+        method_labels[spec["key"]] = spec["label"]
 
     ds_pairs = {}
     ds_accs = {k: {} for k in dataset_keys}
@@ -303,37 +348,33 @@ def main():
             print(f"  {desc}: {ds_accs[ds_key][key]:.4f}")
     quantizer.restore()
 
-    if gptq_key is not None:
+    for spec in external_baselines:
         print(f"\n{'='*65}")
-        print(f"  GPTQ BASELINE ({args.gptq_bits}-bit)")
-        print(f"  Calibration: GSM8K train | {args.gptq_samples} x "
-              f"{args.gptq_seqlen} tokens | percdamp={args.gptq_percdamp}")
+        print(f"  {spec['banner']}")
+        print(f"  Calibration: {spec['detail']}")
         print(f"{'='*65}\n")
         calib_batches = build_calibration_batches(
             quantizer.tokenizer,
-            nsamples=args.gptq_samples,
-            seqlen=args.gptq_seqlen,
+            nsamples=spec["samples"],
+            seqlen=spec["seqlen"],
             device=next(quantizer.model.parameters()).device,
         )
-        apply_gptq_uniform(
-            quantizer.model,
-            calib_batches,
-            wbits=args.gptq_bits,
-            percdamp=args.gptq_percdamp,
-        )
+        quantizer.restore()
+        spec["apply"](quantizer.model, calib_batches)
+        del calib_batches
+        _empty_cache()
         for ds_key in dataset_keys:
             display = DATASET_REGISTRY[ds_key]["display"]
-            print(f"  Evaluating GPTQ on {display}...")
-            ds_accs[ds_key][gptq_key] = evaluate_dataset(
+            print(f"  Evaluating {spec['label']} on {display}...")
+            ds_accs[ds_key][spec["key"]] = evaluate_dataset(
                 quantizer.model, quantizer.tokenizer,
                 ds_pairs[ds_key], ds_key)
-            print(f"  GPTQ ({args.gptq_bits}-bit) [{display}]: "
-                  f"{ds_accs[ds_key][gptq_key]:.4f}")
+            print(f"  {spec['label']} [{display}]: "
+                  f"{ds_accs[ds_key][spec['key']]:.4f}")
         quantizer.restore()
 
     method_order = ["bf16", "int8", "int4"]
-    if gptq_key is not None:
-        method_order.append(gptq_key)
+    method_order += [s["key"] for s in external_baselines]
     method_order.append("mixed")
 
     ds_results = {}
@@ -421,16 +462,19 @@ def main():
             "size_reduction_pct":     size_reduction_pct,
             "compression_ratio":      compression,
             "optimal_layer_config":   optimal,
-            **({
-                "gptq": {
-                    "enabled":    True,
-                    "bits":       args.gptq_bits,
-                    "calib_samples": args.gptq_samples,
-                    "calib_seqlen":  args.gptq_seqlen,
-                    "percdamp":   args.gptq_percdamp,
-                    "size_mb":    gptq_size_mb,
+            "external_baselines": [
+                {
+                    "name": s["label"],
+                    "key": s["key"],
+                    "size_mb": round(s["size_mb"], 4),
+                    "calib_samples": s["samples"],
+                    "calib_seqlen": s["seqlen"],
+                    **({"percdamp": args.gptq_percdamp}
+                       if s["key"].startswith("gptq")
+                       else {"group_size": args.awq_group_size}),
                 }
-            } if gptq_key is not None else {"gptq": {"enabled": False}}),
+                for s in external_baselines
+            ],
             "dataset_results": {
                 k: {
                     "display": v["display"],
