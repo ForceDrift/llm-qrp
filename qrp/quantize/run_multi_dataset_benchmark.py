@@ -16,6 +16,13 @@ def _empty_cache():
     gc.collect()
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
+from qrp.external.awq_baseline import apply_awq_uniform
+from qrp.external.gptq_baseline import (
+    apply_gptq_uniform,
+    build_calibration_batches,
+    estimate_uniform_bits_size_bytes,
+)
+from qrp.external.spqr_baseline import apply_spqr_uniform, estimate_spqr_size_bytes
 from qrp.quantize.quantizer import TargetedQuantizer
 
 
@@ -198,6 +205,28 @@ def main():
                         help="Number of calibration sequences for AWQ")
     parser.add_argument("--awq-seqlen", type=int, default=2048,
                         help="Sequence length of each AWQ calibration sequence")
+    parser.add_argument("--with-spqr", action="store_true",
+                        help="Also benchmark uniform SpQR as an external baseline")
+    parser.add_argument("--spqr-bits", type=int, default=3, choices=[2, 3, 4, 8],
+                        help="Bit width for the SpQR base quantization (default: 3)")
+    parser.add_argument("--spqr-group-size", type=int, default=16,
+                        help="Weight group size for the SpQR baseline (default: 16)")
+    parser.add_argument("--spqr-qq-bits", type=int, default=3,
+                        help="Bits for SpQR's double-quantized scale/zero stats (default: 3)")
+    parser.add_argument("--spqr-qq-group-size", type=int, default=16,
+                        help="Group size for double-quantized scale/zero stats (default: 16)")
+    parser.add_argument("--spqr-outlier-threshold", type=float, default=0.2,
+                        help="Relative leave-one-out threshold for SpQR fp16 outliers "
+                             "(default: 0.2; pass 'inf' to disable outliers)")
+    parser.add_argument("--spqr-permutation", type=str, default="act_order",
+                        choices=["identity", "act_order", "spearman"],
+                        help="Input-feature permutation order for SpQR (default: act_order)")
+    parser.add_argument("--spqr-percdamp", type=float, default=1.0,
+                        help="SpQR Hessian damping percentage (default: 1.0)")
+    parser.add_argument("--spqr-samples", type=int, default=32,
+                        help="Number of calibration sequences for SpQR")
+    parser.add_argument("--spqr-seqlen", type=int, default=2048,
+                        help="Sequence length of each SpQR calibration sequence")
     args = parser.parse_args()
 
     dataset_keys = [d.strip() for d in args.datasets.split(",")]
@@ -237,6 +266,8 @@ def main():
         print(f"  GPTQ:     uniform {args.gptq_bits}-bit external baseline")
     if args.with_awq:
         print(f"  AWQ:      uniform {args.awq_bits}-bit external baseline")
+    if args.with_spqr:
+        print(f"  SpQR:     uniform {args.spqr_bits}-bit sparse external baseline")
     print(f"{'='*65}\n")
 
     print("Loading model (BF16)...")
@@ -312,6 +343,47 @@ def main():
             "apply": lambda model, calib: apply_awq_uniform(
                 model, calib, wbits=args.awq_bits, q_group_size=args.awq_group_size),
         })
+    if args.with_spqr:
+        spqr_key = f"spqr{args.spqr_bits}"
+
+        def _spqr_size_mb(outlier_share):
+            return estimate_spqr_size_bytes(
+                quantizer.model, num_layers,
+                wbits=args.spqr_bits,
+                groupsize=args.spqr_group_size,
+                qq_scale_bits=args.spqr_qq_bits,
+                qq_zero_bits=args.spqr_qq_bits,
+                qq_groupsize=args.spqr_qq_group_size,
+                outlier_share=outlier_share,
+            ) / 1e6
+
+        spqr_size_mb = _spqr_size_mb(0.0)
+        print(f"SpQR ({args.spqr_bits}-bit) size: "
+              f"{spqr_size_mb:.2f} MB "
+              f"({(1 - spqr_size_mb / baseline_size_mb) * 100:.1f}% smaller, "
+              f"{baseline_size_mb / spqr_size_mb:.2f}x)")
+        external_baselines.append({
+            "key": spqr_key,
+            "label": f"SpQR ({args.spqr_bits}-bit)",
+            "size_mb": spqr_size_mb,
+            "samples": args.spqr_samples,
+            "seqlen": args.spqr_seqlen,
+            "banner": f"SpQR BASELINE ({args.spqr_bits}-bit)",
+            "detail": (f"GSM8K train | {args.spqr_samples} x "
+                       f"{args.spqr_seqlen} tokens | group_size={args.spqr_group_size} "
+                       f"| outliers={'off' if math.isinf(args.spqr_outlier_threshold) else args.spqr_outlier_threshold}"),
+            "finalize": lambda stats: _spqr_size_mb(stats["outlier_share"]),
+            "apply": lambda model, calib: apply_spqr_uniform(
+                model, calib,
+                wbits=args.spqr_bits,
+                groupsize=args.spqr_group_size,
+                qq_scale_bits=args.spqr_qq_bits,
+                qq_zero_bits=args.spqr_qq_bits,
+                qq_groupsize=args.spqr_qq_group_size,
+                outlier_threshold=args.spqr_outlier_threshold,
+                permutation_order=args.spqr_permutation,
+                percdamp=args.spqr_percdamp),
+        })
 
     method_sizes_mb = {
         "bf16":  baseline_size_mb,
@@ -360,9 +432,16 @@ def main():
             device=next(quantizer.model.parameters()).device,
         )
         quantizer.restore()
-        spec["apply"](quantizer.model, calib_batches)
+        apply_stats = spec["apply"](quantizer.model, calib_batches)
         del calib_batches
         _empty_cache()
+        if apply_stats is not None and "finalize" in spec:
+            spec["measured"] = apply_stats
+            spec["size_mb"] = spec["finalize"](apply_stats)
+            method_sizes_mb[spec["key"]] = spec["size_mb"]
+            print(f"  {spec['label']} measured: {apply_stats['effective_bpw']:.2f} avg bits/weight "
+                  f"({apply_stats['outlier_share']:.2%} fp16 outliers) "
+                  f"-> {spec['size_mb']:.2f} MB")
         for ds_key in dataset_keys:
             display = DATASET_REGISTRY[ds_key]["display"]
             print(f"  Evaluating {spec['label']} on {display}...")
@@ -471,7 +550,17 @@ def main():
                     "calib_seqlen": s["seqlen"],
                     **({"percdamp": args.gptq_percdamp}
                        if s["key"].startswith("gptq")
-                       else {"group_size": args.awq_group_size}),
+                       else {"group_size": args.awq_group_size}
+                       if s["key"].startswith("awq")
+                       else {"group_size": args.spqr_group_size,
+                             "qq_bits": args.spqr_qq_bits,
+                             "qq_group_size": args.spqr_qq_group_size,
+                             "outlier_threshold": args.spqr_outlier_threshold,
+                             "permutation_order": args.spqr_permutation,
+                             "percdamp": args.spqr_percdamp}),
+                    **({"measured_outlier_share": s["measured"]["outlier_share"],
+                        "avg_bits_per_weight": s["measured"]["effective_bpw"]}
+                       if "measured" in s else {}),
                 }
                 for s in external_baselines
             ],
