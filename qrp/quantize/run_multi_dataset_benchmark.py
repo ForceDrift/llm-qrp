@@ -8,6 +8,11 @@ import torch
 from datasets import load_dataset
 from tqdm import tqdm
 
+from qrp.external.gptq_baseline import (
+    apply_gptq_uniform,
+    build_calibration_batches,
+    estimate_uniform_bits_size_bytes,
+)
 from qrp.model_mapper import get_layer_structure, get_model_layers
 from qrp.quantize.quantizer import TargetedQuantizer
 
@@ -128,7 +133,8 @@ def write_latex(rows, dataset_displays, model_name, path):
     lines = [
         r"\begin{table}[h]",
         r"  \centering",
-        f"  \\caption{{Quantization Benchmark: BF16, Uniform INT8, and Uniform INT4 baselines "
+        f"  \\caption{{Quantization Benchmark: "
+        f"{', '.join(r['Model'] for r in rows if 'LLM-QRP' not in r['Model'])} "
         f"vs. LLM-QRP Optimal Mixed-Precision ({model_name})}}",
         r"  \label{tab:benchmark}",
         f"  \\begin{{tabular}}{{{col_spec}}}",
@@ -170,6 +176,16 @@ def main():
                         help="Number of samples per dataset")
     parser.add_argument("--datasets", type=str, default="gsm8k,tfqa",
                         help="Comma-separated: gsm8k, tfqa, mmlu")
+    parser.add_argument("--with-gptq", action="store_true",
+                        help="Also benchmark uniform GPTQ as an external baseline")
+    parser.add_argument("--gptq-bits", type=int, default=4, choices=[2, 3, 4, 8],
+                        help="Bit width for the GPTQ baseline (default: 4)")
+    parser.add_argument("--gptq-samples", type=int, default=32,
+                        help="Number of calibration sequences for GPTQ")
+    parser.add_argument("--gptq-seqlen", type=int, default=2048,
+                        help="Sequence length of each GPTQ calibration sequence")
+    parser.add_argument("--gptq-percdamp", type=float, default=0.01,
+                        help="GPTQ Hessian damping percentage")
     args = parser.parse_args()
 
     dataset_keys = [d.strip() for d in args.datasets.split(",")]
@@ -205,6 +221,8 @@ def main():
     opt_desc = (f"{optimal['n_4bit']} × FP4  |  {optimal['n_8bit_only']} × INT8  |  "
                 f"{optimal.get('n_bf16', '?')} × BF16")
     print(f"  Optimal:  {opt_desc}")
+    if args.with_gptq:
+        print(f"  GPTQ:     uniform {args.gptq_bits}-bit external baseline")
     print(f"{'='*65}\n")
 
     print("Loading model (BF16)...")
@@ -232,44 +250,99 @@ def main():
     ds_results = {}
     dataset_displays = [DATASET_REGISTRY[k]["display"] for k in dataset_keys]
 
-    eval_conditions = [
+    base_conditions = [
         ("bf16",  "BF16 baseline",            None),
         ("int8",  "Uniform INT8 baseline",    uniform_int8_configs),
         ("int4",  "Uniform INT4 baseline",    uniform_int4_configs),
         ("mixed", "Optimal mixed-precision",  opt_layer_configs),
     ]
+
+    gptq_key = None
+    if args.with_gptq:
+        gptq_key = f"gptq{args.gptq_bits}"
+        gptq_size_mb = estimate_uniform_bits_size_bytes(
+            quantizer.model, num_layers, args.gptq_bits) / 1e6
+        print(f"GPTQ ({args.gptq_bits}-bit) size: "
+              f"{gptq_size_mb:.2f} MB "
+              f"({(1 - gptq_size_mb / baseline_size_mb) * 100:.1f}% smaller, "
+              f"{baseline_size_mb / gptq_size_mb:.2f}x)")
+
     method_sizes_mb = {
         "bf16":  baseline_size_mb,
         "int8":  int8_size_mb,
         "int4":  int4_size_mb,
         "mixed": opt_size_mb,
     }
+    if gptq_key is not None:
+        method_sizes_mb[gptq_key] = gptq_size_mb
     method_labels = {
         "bf16":  model_label_base,
         "int8":  "Uniform INT8",
         "int4":  "Uniform INT4",
         "mixed": model_label_opt,
     }
+    if gptq_key is not None:
+        method_labels[gptq_key] = f"GPTQ ({args.gptq_bits}-bit)"
 
+    ds_pairs = {}
+    ds_accs = {k: {} for k in dataset_keys}
     for ds_key in dataset_keys:
         display = DATASET_REGISTRY[ds_key]["display"]
         print(f"\n──── {display} ────")
         pairs = load_eval_pairs(ds_key, args.samples)
+        ds_pairs[ds_key] = pairs
 
-        accs = {}
-        for i, (key, desc, configs) in enumerate(eval_conditions, 1):
-            print(f"  [{i}/{len(eval_conditions)}] {desc}...")
+        for i, (key, desc, configs) in enumerate(base_conditions, 1):
+            print(f"  [{i}/{len(base_conditions)}] {desc}...")
             if configs is None:
                 quantizer.restore()
             else:
                 quantizer.quantize_layers(configs)
-            accs[key] = evaluate_dataset(quantizer.model, quantizer.tokenizer, pairs, ds_key)
-            print(f"  {desc}: {accs[key]:.4f}")
+            ds_accs[ds_key][key] = evaluate_dataset(
+                quantizer.model, quantizer.tokenizer, pairs, ds_key)
+            print(f"  {desc}: {ds_accs[ds_key][key]:.4f}")
+    quantizer.restore()
+
+    if gptq_key is not None:
+        print(f"\n{'='*65}")
+        print(f"  GPTQ BASELINE ({args.gptq_bits}-bit)")
+        print(f"  Calibration: GSM8K train | {args.gptq_samples} x "
+              f"{args.gptq_seqlen} tokens | percdamp={args.gptq_percdamp}")
+        print(f"{'='*65}\n")
+        calib_batches = build_calibration_batches(
+            quantizer.tokenizer,
+            nsamples=args.gptq_samples,
+            seqlen=args.gptq_seqlen,
+            device=next(quantizer.model.parameters()).device,
+        )
+        apply_gptq_uniform(
+            quantizer.model,
+            calib_batches,
+            wbits=args.gptq_bits,
+            percdamp=args.gptq_percdamp,
+        )
+        for ds_key in dataset_keys:
+            display = DATASET_REGISTRY[ds_key]["display"]
+            print(f"  Evaluating GPTQ on {display}...")
+            ds_accs[ds_key][gptq_key] = evaluate_dataset(
+                quantizer.model, quantizer.tokenizer,
+                ds_pairs[ds_key], ds_key)
+            print(f"  GPTQ ({args.gptq_bits}-bit) [{display}]: "
+                  f"{ds_accs[ds_key][gptq_key]:.4f}")
         quantizer.restore()
 
-        base_acc = accs["bf16"]
+    method_order = ["bf16", "int8", "int4"]
+    if gptq_key is not None:
+        method_order.append(gptq_key)
+    method_order.append("mixed")
+
+    ds_results = {}
+    for ds_key in dataset_keys:
+        display = DATASET_REGISTRY[ds_key]["display"]
+        accs = ds_accs[ds_key]
+        base_acc = accs.get("bf16", 0.0)
         methods = {}
-        for key, _, _ in eval_conditions:
+        for key in method_order:
             size_mb   = method_sizes_mb[key]
             acc       = accs[key]
             eff       = acc / size_mb if size_mb > 0 else 0.0
@@ -289,7 +362,6 @@ def main():
             "methods": methods,
         }
 
-    method_order = ["bf16", "int8", "int4", "mixed"]
     table_rows = []
     for key in method_order:
         size_mb = method_sizes_mb[key]
@@ -349,6 +421,16 @@ def main():
             "size_reduction_pct":     size_reduction_pct,
             "compression_ratio":      compression,
             "optimal_layer_config":   optimal,
+            **({
+                "gptq": {
+                    "enabled":    True,
+                    "bits":       args.gptq_bits,
+                    "calib_samples": args.gptq_samples,
+                    "calib_seqlen":  args.gptq_seqlen,
+                    "percdamp":   args.gptq_percdamp,
+                    "size_mb":    gptq_size_mb,
+                }
+            } if gptq_key is not None else {"gptq": {"enabled": False}}),
             "dataset_results": {
                 k: {
                     "display": v["display"],

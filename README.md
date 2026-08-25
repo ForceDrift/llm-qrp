@@ -36,7 +36,7 @@ This repository contains the code for a research pipeline that profiles where re
 1. **Profile Layers**: Extract layer-wise thinking scores (SLED-style disagreement and entropy metrics) on reasoning datasets.
 2. **Ablate**: Verify which layers actually matter by measuring performance drops when they are skipped or degraded.
 3. **Learn the Optimal Mix**: Sweep candidate mixed-precision configurations (BF16 / INT8 / FP4 per layer) and pick the one maximizing compression under an accuracy floor.
-4. **Benchmark**: Evaluate the optimal mixed-precision model side-by-side against **BF16**, **Uniform INT8**, and **Uniform INT4** baselines across multiple datasets.
+4. **Benchmark**: Evaluate the optimal mixed-precision model side-by-side against **BF16**, **Uniform INT8**, **Uniform INT4**, and (optionally) **GPTQ** baselines across multiple datasets.
 
 Quick summary of the main files in the repository:
 
@@ -50,7 +50,8 @@ Quick summary of the main files in the repository:
 	+ `qrp/quantize/find_optimal_mixed_precision.py`: Searches all candidate mixed-precision configs and selects the most efficient one.
 	+ `qrp/quantize/export_quantized_model.py`: Exports the quantized checkpoint.
 	+ `qrp/quantize/run_compression_report.py`: Compression report and chart (accuracy vs size).
-	+ `qrp/quantize/run_multi_dataset_benchmark.py`: Multi-dataset benchmark producing Table 1 (BF16 / Uniform INT8 / Uniform INT4 / LLM-QRP), written to `benchmark_results.csv`, `benchmark_results.tex` and `multi_dataset_benchmark.json`.
+	+ `qrp/quantize/run_multi_dataset_benchmark.py`: Multi-dataset benchmark producing Table 1 (BF16 / Uniform INT8 / Uniform INT4 / optional GPTQ / LLM-QRP), written to `benchmark_results.csv`, `benchmark_results.tex` and `multi_dataset_benchmark.json`.
+	+ `qrp/external/gptq_baseline.py`: Adapter that runs the vendored [GPTQ](https://github.com/ist-daslab/gptq) implementation (`external/gptq`) uniformly over all decoder blocks, using GSM8K train sequences for calibration.
 * **Visualization:**
 	+ `qrp/visualization/generate_report.py`: Aggregates JSON results into markdown reports and plots.
 * **Shell Scripts (`scripts` directory):**
@@ -84,15 +85,16 @@ python -m qrp.quantize.find_optimal_mixed_precision \
     --samples 100 \
     --min-accuracy-floor 0.5
 
-# 2. Benchmark against uniform baselines (Table 1)
+# 2. Benchmark against uniform baselines (Table 1); add --with-gptq to include a GPTQ baseline
 python -m qrp.quantize.run_multi_dataset_benchmark \
     --model-name HuggingFaceTB/SmolLM2-135M \
     --output-folder ./results \
     --samples 100 \
-    --datasets gsm8k,tfqa,mmlu
+    --datasets gsm8k,tfqa,mmlu \
+    --with-gptq --gptq-bits 4 --gptq-samples 32
 ```
 
-Step 2 evaluates four conditions on every dataset — the untouched **BF16** model, a **Uniform INT8** model (all layers 8-bit), a **Uniform INT4** model (all layers 4-bit), and the **LLM-QRP** optimal mix — reporting accuracy, estimated size (MB), compression ratio, and accuracy-per-MB efficiency for each. Results are stored in `./results/<model_name>/quantize/`.
+Step 2 evaluates every dataset under up to five conditions — the untouched **BF16** model, a **Uniform INT8** model (all layers 8-bit), a **Uniform INT4** model (all layers 4-bit), an optional uniform **GPTQ** model (Hessian-based weight quantization from the vendored reference implementation, calibrated on GSM8K train sequences), and the **LLM-QRP** optimal mix — reporting accuracy, estimated size (MB), compression ratio, and accuracy-per-MB efficiency for each. Results are stored in `./results/<model_name>/quantize/`.
 
 ### Running the unified benchmarking suite
 
