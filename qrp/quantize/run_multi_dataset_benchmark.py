@@ -22,6 +22,7 @@ from qrp.external.gptq_baseline import (
     build_calibration_batches,
     estimate_uniform_bits_size_bytes,
 )
+from qrp.external.slim_baseline import apply_slim_uniform
 from qrp.external.spqr_baseline import apply_spqr_uniform, estimate_spqr_size_bytes
 from qrp.quantize.quantizer import TargetedQuantizer
 
@@ -227,6 +228,22 @@ def main():
                         help="Number of calibration sequences for SpQR")
     parser.add_argument("--spqr-seqlen", type=int, default=2048,
                         help="Sequence length of each SpQR calibration sequence")
+    parser.add_argument("--with-slim", action="store_true",
+                        help="Also benchmark uniform SliM-LLM as an external baseline")
+    parser.add_argument("--slim-bits", type=int, default=2, choices=[2, 3, 4, 5, 6, 7, 8],
+                        help="Average bit-width for the SliM-LLM baseline (default: 2)")
+    parser.add_argument("--slim-group-size", type=int, default=128,
+                        help="Salience-group size for the SliM-LLM baseline (default: 128)")
+    parser.add_argument("--slim-percdamp", type=float, default=0.01,
+                        help="SliM-LLM Hessian damping percentage")
+    parser.add_argument("--slim-lambda-salience", type=float, default=1.0,
+                        help="Weight of salient-weight error in SliM-LLM's quantizer fit")
+    parser.add_argument("--slim-metric", type=str, default="mse",
+                        help="SliM-LLM quantizer parameter search metric")
+    parser.add_argument("--slim-samples", type=int, default=32,
+                        help="Number of calibration sequences for SliM-LLM")
+    parser.add_argument("--slim-seqlen", type=int, default=2048,
+                        help="Sequence length of each SliM-LLM calibration sequence")
     args = parser.parse_args()
 
     dataset_keys = [d.strip() for d in args.datasets.split(",")]
@@ -268,6 +285,8 @@ def main():
         print(f"  AWQ:      uniform {args.awq_bits}-bit external baseline")
     if args.with_spqr:
         print(f"  SpQR:     uniform {args.spqr_bits}-bit sparse external baseline")
+    if args.with_slim:
+        print(f"  SliM-LLM: ~{args.slim_bits}-bit salience-mixed external baseline")
     print(f"{'='*65}\n")
 
     print("Loading model (BF16)...")
@@ -383,6 +402,35 @@ def main():
                 outlier_threshold=args.spqr_outlier_threshold,
                 permutation_order=args.spqr_permutation,
                 percdamp=args.spqr_percdamp),
+        })
+    if args.with_slim:
+        slim_key = f"slim{args.slim_bits}"
+        # SliM-LLM promotes and demotes an equal number of weight groups
+        # around `wbits`, so the average bit-width stays ~wbits; price it with
+        # the same uniform-bit convention as the GPTQ/AWQ rows.
+        slim_size_mb = estimate_uniform_bits_size_bytes(
+            quantizer.model, num_layers, args.slim_bits) / 1e6
+        print(f"SliM-LLM (~{args.slim_bits}-bit) size: "
+              f"{slim_size_mb:.2f} MB "
+              f"({(1 - slim_size_mb / baseline_size_mb) * 100:.1f}% smaller, "
+              f"{baseline_size_mb / slim_size_mb:.2f}x)")
+        external_baselines.append({
+            "key": slim_key,
+            "label": f"SliM-LLM ({args.slim_bits}-bit)",
+            "size_mb": slim_size_mb,
+            "samples": args.slim_samples,
+            "seqlen": args.slim_seqlen,
+            "banner": f"SliM-LLM BASELINE ({args.slim_bits}-bit)",
+            "detail": (f"GSM8K train | {args.slim_samples} x "
+                       f"{args.slim_seqlen} tokens | group_size={args.slim_group_size} "
+                       f"| lambda_salience={args.slim_lambda_salience}"),
+            "apply": lambda model, calib: apply_slim_uniform(
+                model, calib,
+                wbits=args.slim_bits,
+                groupsize=args.slim_group_size,
+                percdamp=args.slim_percdamp,
+                metric=args.slim_metric,
+                lambda_salience=args.slim_lambda_salience),
         })
 
     method_sizes_mb = {
@@ -557,7 +605,11 @@ def main():
                              "qq_group_size": args.spqr_qq_group_size,
                              "outlier_threshold": args.spqr_outlier_threshold,
                              "permutation_order": args.spqr_permutation,
-                             "percdamp": args.spqr_percdamp}),
+                             "percdamp": args.spqr_percdamp}
+                       if s["key"].startswith("spqr")
+                       else {"group_size": args.slim_group_size,
+                             "lambda_salience": args.slim_lambda_salience,
+                             "metric": args.slim_metric}),
                     **({"measured_outlier_share": s["measured"]["outlier_share"],
                         "avg_bits_per_weight": s["measured"]["effective_bpw"]}
                        if "measured" in s else {}),
