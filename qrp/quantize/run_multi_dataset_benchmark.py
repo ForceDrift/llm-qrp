@@ -128,7 +128,8 @@ def write_latex(rows, dataset_displays, model_name, path):
     lines = [
         r"\begin{table}[h]",
         r"  \centering",
-        f"  \\caption{{Quantization Benchmark: BF16 vs. LLM-QRP Optimal Mixed-Precision ({model_name})}}",
+        f"  \\caption{{Quantization Benchmark: BF16, Uniform INT8, and Uniform INT4 baselines "
+        f"vs. LLM-QRP Optimal Mixed-Precision ({model_name})}}",
         r"  \label{tab:benchmark}",
         f"  \\begin{{tabular}}{{{col_spec}}}",
         r"    \toprule",
@@ -139,6 +140,8 @@ def write_latex(rows, dataset_displays, model_name, path):
     ]
 
     for row in rows:
+        if "LLM-QRP" in row["Model"]:
+            lines.append(r"    \midrule")
         size_str  = f"{row['Size (MB)']:.1f}"
         cmpr_str  = row["Compression"]
         ds_vals   = " & ".join(f"{row[d]:.4f}" for d in dataset_displays)
@@ -158,7 +161,8 @@ def write_latex(rows, dataset_displays, model_name, path):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Multi-dataset benchmark: BF16 vs optimal mixed-precision model."
+        description="Multi-dataset benchmark: BF16 / Uniform INT8 / Uniform INT4 baselines "
+                    "vs optimal mixed-precision model."
     )
     parser.add_argument("--model-name", type=str, default="HuggingFaceTB/SmolLM2-135M")
     parser.add_argument("--output-folder", type=str, required=True)
@@ -206,70 +210,99 @@ def main():
     print("Loading model (BF16)...")
     quantizer  = TargetedQuantizer(args.model_name)
     num_layers = quantizer.num_layers
-    baseline_size    = estimate_size(quantizer.model, {}, num_layers)
-    baseline_size_mb = baseline_size / 1e6
-    print(f"Baseline layer size:  {baseline_size_mb:.2f} MB")
 
-    quantizer.quantize_layers(opt_layer_configs)
-    opt_size    = estimate_size(quantizer.model, opt_layer_configs, num_layers)
-    opt_size_mb = opt_size / 1e6
-    compression = baseline_size_mb / opt_size_mb
+    baseline_size_mb = estimate_size(quantizer.model, {}, num_layers) / 1e6
+    opt_size_mb      = estimate_size(quantizer.model, opt_layer_configs, num_layers) / 1e6
+    compression      = baseline_size_mb / opt_size_mb
     size_reduction_pct = (1 - opt_size_mb / baseline_size_mb) * 100
-    print(f"Optimal layer size:   {opt_size_mb:.2f} MB  ({size_reduction_pct:.1f}% smaller, {compression:.2f}x)")
-    quantizer.restore()
+
+    uniform_int8_configs = {i: "8bit" for i in range(num_layers)}
+    uniform_int4_configs = {i: "4bit" for i in range(num_layers)}
+    int8_size_mb = estimate_size(quantizer.model, uniform_int8_configs, num_layers) / 1e6
+    int4_size_mb = estimate_size(quantizer.model, uniform_int4_configs, num_layers) / 1e6
+
+    print(f"Baseline layer size:  {baseline_size_mb:.2f} MB")
+    print(f"Uniform INT8 size:    {int8_size_mb:.2f} MB "
+          f"({(1 - int8_size_mb / baseline_size_mb) * 100:.1f}% smaller, {baseline_size_mb / int8_size_mb:.2f}x)")
+    print(f"Uniform INT4 size:    {int4_size_mb:.2f} MB "
+          f"({(1 - int4_size_mb / baseline_size_mb) * 100:.1f}% smaller, {baseline_size_mb / int4_size_mb:.2f}x)")
+    print(f"Optimal layer size:   {opt_size_mb:.2f} MB "
+          f"({size_reduction_pct:.1f}% smaller, {compression:.2f}x)")
 
     ds_results = {}
     dataset_displays = [DATASET_REGISTRY[k]["display"] for k in dataset_keys]
+
+    eval_conditions = [
+        ("bf16",  "BF16 baseline",            None),
+        ("int8",  "Uniform INT8 baseline",    uniform_int8_configs),
+        ("int4",  "Uniform INT4 baseline",    uniform_int4_configs),
+        ("mixed", "Optimal mixed-precision",  opt_layer_configs),
+    ]
+    method_sizes_mb = {
+        "bf16":  baseline_size_mb,
+        "int8":  int8_size_mb,
+        "int4":  int4_size_mb,
+        "mixed": opt_size_mb,
+    }
+    method_labels = {
+        "bf16":  model_label_base,
+        "int8":  "Uniform INT8",
+        "int4":  "Uniform INT4",
+        "mixed": model_label_opt,
+    }
 
     for ds_key in dataset_keys:
         display = DATASET_REGISTRY[ds_key]["display"]
         print(f"\n──── {display} ────")
         pairs = load_eval_pairs(ds_key, args.samples)
 
-        print("  [1/2] BF16 baseline...")
+        accs = {}
+        for i, (key, desc, configs) in enumerate(eval_conditions, 1):
+            print(f"  [{i}/{len(eval_conditions)}] {desc}...")
+            if configs is None:
+                quantizer.restore()
+            else:
+                quantizer.quantize_layers(configs)
+            accs[key] = evaluate_dataset(quantizer.model, quantizer.tokenizer, pairs, ds_key)
+            print(f"  {desc}: {accs[key]:.4f}")
         quantizer.restore()
-        base_acc = evaluate_dataset(quantizer.model, quantizer.tokenizer, pairs, ds_key)
-        print(f"  BF16:  {base_acc:.4f}")
 
-        print("  [2/2] Optimal mixed-precision...")
-        quantizer.quantize_layers(opt_layer_configs)
-        opt_acc = evaluate_dataset(quantizer.model, quantizer.tokenizer, pairs, ds_key)
-        print(f"  Mixed: {opt_acc:.4f}")
-        quantizer.restore()
-
-        acc_drop    = (1 - opt_acc / base_acc) * 100 if base_acc > 0 else 0.0
-        base_eff    = base_acc / baseline_size_mb
-        opt_eff     = opt_acc  / opt_size_mb
-        eff_gain    = (opt_eff / base_eff - 1) * 100 if base_eff > 0 else 0.0
+        base_acc = accs["bf16"]
+        methods = {}
+        for key, _, _ in eval_conditions:
+            size_mb   = method_sizes_mb[key]
+            acc       = accs[key]
+            eff       = acc / size_mb if size_mb > 0 else 0.0
+            drop_pct  = (1 - acc / base_acc) * 100 if base_acc > 0 and key != "bf16" else 0.0
+            eff_gain  = (eff / (base_acc / baseline_size_mb) - 1) * 100 \
+                if base_acc > 0 and baseline_size_mb > 0 and key != "bf16" else 0.0
+            methods[key] = {
+                "acc":          acc,
+                "size_mb":      size_mb,
+                "eff":          eff,
+                "acc_drop_pct": drop_pct,
+                "eff_gain_pct": eff_gain,
+            }
 
         ds_results[ds_key] = {
-            "display":      display,
-            "baseline_acc": base_acc,
-            "opt_acc":      opt_acc,
-            "acc_drop_pct": acc_drop,
-            "baseline_eff": base_eff,
-            "opt_eff":      opt_eff,
-            "eff_gain_pct": eff_gain,
+            "display": display,
+            "methods": methods,
         }
 
-    baseline_row = {
-        "Model":         model_label_base,
-        "Size (MB)":     baseline_size_mb,
-        "Compression":   "1.00x",
-    }
-    opt_row = {
-        "Model":         model_label_opt,
-        "Size (MB)":     opt_size_mb,
-        "Compression":   f"{compression:.2f}x",
-    }
-    for ds_key, r in ds_results.items():
-        d = r["display"]
-        baseline_row[d] = r["baseline_acc"]
-        baseline_row[f"Eff {d}"] = r["baseline_eff"]
-        opt_row[d]      = r["opt_acc"]
-        opt_row[f"Eff {d}"] = r["opt_eff"]
-
-    table_rows = [baseline_row, opt_row]
+    method_order = ["bf16", "int8", "int4", "mixed"]
+    table_rows = []
+    for key in method_order:
+        size_mb = method_sizes_mb[key]
+        row = {
+            "Model":       method_labels[key],
+            "Size (MB)":   size_mb,
+            "Compression": f"{baseline_size_mb / size_mb:.2f}x",
+        }
+        for ds_key, r in ds_results.items():
+            d = r["display"]
+            row[d] = r["methods"][key]["acc"]
+            row[f"Eff {d}"] = r["methods"][key]["eff"]
+        table_rows.append(row)
 
     print(f"\n{'='*75}")
     print("  RESULTS SUMMARY")
@@ -291,9 +324,12 @@ def main():
     print(f"\n  Size:  {baseline_size_mb:.2f} MB → {opt_size_mb:.2f} MB  "
           f"({size_reduction_pct:.1f}% reduction, {compression:.2f}x compression)")
     for ds_key, r in ds_results.items():
-        drop_str = f"{r['acc_drop_pct']:.2f}%"
-        gain_str = f"+{r['eff_gain_pct']:.1f}%" if r['eff_gain_pct'] >= 0 else f"{r['eff_gain_pct']:.1f}%"
-        print(f"  {r['display']:<12} Acc drop: {drop_str:>6}   Efficiency gain: {gain_str}")
+        print(f"  {r['display']:<12}")
+        for key in method_order[1:]:
+            m = r["methods"][key]
+            drop_str = f"{m['acc_drop_pct']:.2f}%"
+            gain_str = f"+{m['eff_gain_pct']:.1f}%" if m['eff_gain_pct'] >= 0 else f"{m['eff_gain_pct']:.1f}%"
+            print(f"    {method_labels[key]:<22} Acc drop: {drop_str:>6}   Efficiency gain: {gain_str}")
 
     os.makedirs(quantize_dir, exist_ok=True)
     csv_path = os.path.join(quantize_dir, "benchmark_results.csv")
@@ -304,21 +340,33 @@ def main():
     json_path = os.path.join(quantize_dir, "multi_dataset_benchmark.json")
     with open(json_path, "w") as f:
         json.dump({
-            "model_name":           args.model_name,
-            "samples_per_dataset":  args.samples,
-            "baseline_size_mb":     baseline_size_mb,
-            "optimal_size_mb":      opt_size_mb,
-            "size_reduction_pct":   size_reduction_pct,
-            "compression_ratio":    compression,
-            "optimal_layer_config": optimal,
+            "model_name":             args.model_name,
+            "samples_per_dataset":    args.samples,
+            "baseline_size_mb":       baseline_size_mb,
+            "uniform_int8_size_mb":   int8_size_mb,
+            "uniform_int4_size_mb":   int4_size_mb,
+            "optimal_size_mb":        opt_size_mb,
+            "size_reduction_pct":     size_reduction_pct,
+            "compression_ratio":      compression,
+            "optimal_layer_config":   optimal,
             "dataset_results": {
                 k: {
-                    "baseline_accuracy":  v["baseline_acc"],
-                    "optimal_accuracy":   v["opt_acc"],
-                    "accuracy_drop_pct":  v["acc_drop_pct"],
-                    "baseline_efficiency": v["baseline_eff"],
-                    "optimal_efficiency":  v["opt_eff"],
-                    "efficiency_gain_pct": v["eff_gain_pct"],
+                    "display": v["display"],
+                    "accuracy": {
+                        m: round(v["methods"][m]["acc"], 6) for m in method_order
+                    },
+                    "size_mb": {
+                        m: round(v["methods"][m]["size_mb"], 4) for m in method_order
+                    },
+                    "efficiency": {
+                        m: round(v["methods"][m]["eff"], 6) for m in method_order
+                    },
+                    "accuracy_drop_pct_vs_bf16": {
+                        m: round(v["methods"][m]["acc_drop_pct"], 4) for m in method_order[1:]
+                    },
+                    "efficiency_gain_pct_vs_bf16": {
+                        m: round(v["methods"][m]["eff_gain_pct"], 4) for m in method_order[1:]
+                    },
                 }
                 for k, v in ds_results.items()
             },
