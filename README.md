@@ -1,8 +1,5 @@
 # LLM-QRP: Quantization for Reasoning Preservation in Small LLMs
 
-![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)
-![Imports: isort](https://img.shields.io/badge/imports-isort-1E72B3.svg)
-
 This software project accompanies the research paper *Quantization for Reasoning Preservation in Small LLMs* ([bibtex](#cite)).
 
 <img width="1423" height="569" alt="image" src="https://github.com/user-attachments/assets/b114d9e4-47f0-4208-aae6-f2a0773346b8" />
