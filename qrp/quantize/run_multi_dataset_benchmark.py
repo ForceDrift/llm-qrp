@@ -23,6 +23,7 @@ from qrp.external.gptq_baseline import (
     estimate_uniform_bits_size_bytes,
 )
 from qrp.external.slim_baseline import apply_slim_uniform
+from qrp.external.smoothquant_baseline import apply_smoothquant_uniform
 from qrp.external.spqr_baseline import apply_spqr_uniform, estimate_spqr_size_bytes
 from qrp.quantize.quantizer import TargetedQuantizer
 
@@ -244,6 +245,16 @@ def main():
                         help="Number of calibration sequences for SliM-LLM")
     parser.add_argument("--slim-seqlen", type=int, default=2048,
                         help="Sequence length of each SliM-LLM calibration sequence")
+    parser.add_argument("--with-smoothquant", action="store_true",
+                        help="Also benchmark SmoothQuant (activation-smoothed per-channel absmax)")
+    parser.add_argument("--smoothquant-bits", type=int, default=8,
+                        help="Weight bit-width for the SmoothQuant baseline (default: 8)")
+    parser.add_argument("--smoothquant-alpha", type=float, default=0.5,
+                        help="Smoothing parameter for SmoothQuant (default: 0.5)")
+    parser.add_argument("--smoothquant-samples", type=int, default=32,
+                        help="Number of calibration sequences for SmoothQuant")
+    parser.add_argument("--smoothquant-seqlen", type=int, default=2048,
+                        help="Sequence length of each SmoothQuant calibration sequence")
     args = parser.parse_args()
 
     dataset_keys = [d.strip() for d in args.datasets.split(",")]
@@ -287,6 +298,8 @@ def main():
         print(f"  SpQR:     uniform {args.spqr_bits}-bit sparse external baseline")
     if args.with_slim:
         print(f"  SliM-LLM: ~{args.slim_bits}-bit salience-mixed external baseline")
+    if args.with_smoothquant:
+        print(f"  SmoothQuant: {args.smoothquant_bits}-bit per-channel absmax (alpha={args.smoothquant_alpha})")
     print(f"{'='*65}\n")
 
     print("Loading model (BF16)...")
@@ -431,6 +444,29 @@ def main():
                 percdamp=args.slim_percdamp,
                 metric=args.slim_metric,
                 lambda_salience=args.slim_lambda_salience),
+        })
+
+    if args.with_smoothquant:
+        sq_key = f"smoothquant{args.smoothquant_bits}"
+        sq_size_mb = estimate_uniform_bits_size_bytes(
+            quantizer.model, num_layers, args.smoothquant_bits) / 1e6
+        print(f"SmoothQuant ({args.smoothquant_bits}-bit) size: "
+              f"{sq_size_mb:.2f} MB "
+              f"({(1 - sq_size_mb / baseline_size_mb) * 100:.1f}% smaller, "
+              f"{baseline_size_mb / sq_size_mb:.2f}x)")
+        external_baselines.append({
+            "key": sq_key,
+            "label": f"SmoothQuant ({args.smoothquant_bits}-bit)",
+            "size_mb": sq_size_mb,
+            "samples": args.smoothquant_samples,
+            "seqlen": args.smoothquant_seqlen,
+            "banner": f"SMOOTHQUANT BASELINE ({args.smoothquant_bits}-bit)",
+            "detail": (f"GSM8K train | {args.smoothquant_samples} x "
+                       f"{args.smoothquant_seqlen} tokens | alpha={args.smoothquant_alpha}"),
+            "apply": lambda model, calib: apply_smoothquant_uniform(
+                model, calib,
+                wbits=args.smoothquant_bits,
+                alpha=args.smoothquant_alpha),
         })
 
     method_sizes_mb = {
@@ -607,9 +643,11 @@ def main():
                              "permutation_order": args.spqr_permutation,
                              "percdamp": args.spqr_percdamp}
                        if s["key"].startswith("spqr")
-                       else {"group_size": args.slim_group_size,
-                             "lambda_salience": args.slim_lambda_salience,
-                             "metric": args.slim_metric}),
+                        else {"group_size": args.slim_group_size,
+                              "lambda_salience": args.slim_lambda_salience,
+                              "metric": args.slim_metric}
+                        if s["key"].startswith("slim")
+                        else {"alpha": args.smoothquant_alpha}),
                     **({"measured_outlier_share": s["measured"]["outlier_share"],
                         "avg_bits_per_weight": s["measured"]["effective_bpw"]}
                        if "measured" in s else {}),

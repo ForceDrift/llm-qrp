@@ -36,7 +36,7 @@ This repository contains the code for a research pipeline that profiles where re
 1. **Profile Layers**: Extract layer-wise thinking scores (SLED-style disagreement and entropy metrics) on reasoning datasets.
 2. **Ablate**: Verify which layers actually matter by measuring performance drops when they are skipped or degraded.
 3. **Learn the Optimal Mix**: Sweep candidate mixed-precision configurations (BF16 / INT8 / FP4 per layer) and pick the one maximizing compression under an accuracy floor.
-4. **Benchmark**: Evaluate the optimal mixed-precision model side-by-side against **BF16**, **Uniform INT8**, **Uniform INT4**, and (optionally) **GPTQ**, **AWQ**, **SpQR**, and **SliM-LLM** baselines across multiple datasets.
+4. **Benchmark**: Evaluate the optimal mixed-precision model side-by-side against **BF16**, **Uniform INT8**, **Uniform INT4**, and (optionally) **GPTQ**, **AWQ**, **SpQR**, **SliM-LLM**, and **SmoothQuant** baselines across multiple datasets.
 
 Quick summary of the main files in the repository:
 
@@ -50,11 +50,12 @@ Quick summary of the main files in the repository:
 	+ `qrp/quantize/find_optimal_mixed_precision.py`: Searches all candidate mixed-precision configs and selects the most efficient one.
 	+ `qrp/quantize/export_quantized_model.py`: Exports the quantized checkpoint.
 	+ `qrp/quantize/run_compression_report.py`: Compression report and chart (accuracy vs size).
-	+ `qrp/quantize/run_multi_dataset_benchmark.py`: Multi-dataset benchmark producing Table 1 (BF16 / Uniform INT8 / Uniform INT4 / optional GPTQ, AWQ, SpQR, SliM-LLM / LLM-QRP), written to `benchmark_results.csv`, `benchmark_results.tex` and `multi_dataset_benchmark.json`.
+	+ `qrp/quantize/run_multi_dataset_benchmark.py`: Multi-dataset benchmark producing Table 1 (BF16 / Uniform INT8 / Uniform INT4 / optional GPTQ, AWQ, SpQR, SliM-LLM, SmoothQuant / LLM-QRP), written to `benchmark_results.csv`, `benchmark_results.tex` and `multi_dataset_benchmark.json`.
 	+ `qrp/external/gptq_baseline.py`: Adapter that runs the vendored [GPTQ](https://github.com/ist-daslab/gptq) implementation (`external/gptq`) uniformly over all decoder blocks, using GSM8K train sequences for calibration.
 	+ `qrp/external/awq_baseline.py`: Adapter that runs the vendored [LLM-AWQ](https://github.com/mit-han-lab/llm-awq) implementation (`external/awq`) — activation-aware scaling, clipping, and grouped fake quantization — uniformly over all decoder blocks, device-agnostic.
 	+ `qrp/external/spqr_baseline.py`: Adapter that runs the vendored [SpQR](https://github.com/Vahe1994/SpQR) implementation (`external/spqr`) — Hessian-based quantization with double-quantized group statistics and fp16 sparse outliers — uniformly over all decoder blocks, device-agnostic.
 	+ `qrp/external/slim_baseline.py`: Adapter that runs the vendored [SliM-LLM](https://github.com/Aaronhuang-778/SliM-LLM) implementation (`external/slim-llm`) — salience-clustered mixed precision around a target bit-width with GPTQ reconstruction — uniformly over all decoder blocks, device-agnostic.
+	+ `qrp/external/smoothquant_baseline.py`: Adapter that runs the vendored [SmoothQuant](https://github.com/mit-han-lab/smoothquant) implementation (`external/smoothquant`) — activation-scale-aware weight smoothing followed by per-channel absmax quantization — uniformly over all decoder blocks, device-agnostic.
 * **Visualization:**
 	+ `qrp/visualization/generate_report.py`: Aggregates JSON results into markdown reports and plots.
 * **Shell Scripts (`scripts` directory):**
@@ -88,7 +89,7 @@ python -m qrp.quantize.find_optimal_mixed_precision \
     --samples 100 \
     --min-accuracy-floor 0.5
 
-# 2. Benchmark against uniform baselines (Table 1); add --with-gptq / --with-awq / --with-spqr / --with-slim for external baselines
+# 2. Benchmark against uniform baselines (Table 1); add --with-gptq / --with-awq / --with-spqr / --with-slim / --with-smoothquant for external baselines
 python -m qrp.quantize.run_multi_dataset_benchmark \
     --model-name HuggingFaceTB/SmolLM2-135M \
     --output-folder ./results \
@@ -97,10 +98,11 @@ python -m qrp.quantize.run_multi_dataset_benchmark \
     --with-gptq --gptq-bits 4 \
     --with-awq --awq-bits 4 \
     --with-spqr --spqr-bits 3 \
-    --with-slim --slim-bits 2
+    --with-slim --slim-bits 2 \
+    --with-smoothquant --smoothquant-bits 8
 ```
 
-Step 2 evaluates every dataset under up to eight conditions — the untouched **BF16** model, a **Uniform INT8** model (all layers 8-bit), a **Uniform INT4** model (all layers 4-bit), optional uniform **GPTQ**, **AWQ**, **SpQR**, and **SliM-LLM** models (all from the vendored reference implementations, calibrated on GSM8K train sequences), and the **LLM-QRP** optimal mix — reporting accuracy, estimated size (MB), compression ratio, and accuracy-per-MB efficiency for each. Results are stored in `./results/<model_name>/quantize/`.
+Step 2 evaluates every dataset under up to nine conditions — the untouched **BF16** model, a **Uniform INT8** model (all layers 8-bit), a **Uniform INT4** model (all layers 4-bit), optional uniform **GPTQ**, **AWQ**, **SpQR**, **SliM-LLM**, and **SmoothQuant** models (all from the vendored reference implementations, calibrated on GSM8K train sequences), and the **LLM-QRP** optimal mix — reporting accuracy, estimated size (MB), compression ratio, and accuracy-per-MB efficiency for each. Results are stored in `./results/<model_name>/quantize/`.
 
 ### Running the unified benchmarking suite
 
