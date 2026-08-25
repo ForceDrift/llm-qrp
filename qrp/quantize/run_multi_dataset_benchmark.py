@@ -17,6 +17,7 @@ def _empty_cache():
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
 from qrp.external.awq_baseline import apply_awq_uniform
+from qrp.external.atom_baseline import apply_atom_uniform
 from qrp.external.gptq_baseline import (
     apply_gptq_uniform,
     build_calibration_batches,
@@ -255,6 +256,25 @@ def main():
                         help="Number of calibration sequences for SmoothQuant")
     parser.add_argument("--smoothquant-seqlen", type=int, default=2048,
                         help="Sequence length of each SmoothQuant calibration sequence")
+    parser.add_argument("--with-atom", action="store_true",
+                        help="Also benchmark Atom (group quantization) as an external baseline")
+    parser.add_argument("--atom-bits", type=int, default=4, choices=[2, 3, 4, 8],
+                        help="Weight bit-width for the Atom baseline (default: 4)")
+    parser.add_argument("--atom-group-size", type=int, default=128,
+                        help="Quantization group size for the Atom baseline (default: 128)")
+    parser.add_argument("--atom-sym", action="store_true", default=True,
+                        help="Use symmetric quantization for Atom (default: True)")
+    parser.add_argument("--atom-no-sym", dest="atom_sym", action="store_false",
+                        help="Use asymmetric quantization for Atom")
+    parser.add_argument("--atom-clip-ratio", type=float, default=1.0,
+                        help="Clip ratio for Atom weight quantization range")
+    parser.add_argument("--atom-quant-type", type=str, default="int",
+                        choices=["int", "fp"],
+                        help="Atom quantization type: 'int' for INT or 'fp' for FP4")
+    parser.add_argument("--atom-samples", type=int, default=32,
+                        help="Number of calibration sequences for Atom")
+    parser.add_argument("--atom-seqlen", type=int, default=2048,
+                        help="Sequence length of each Atom calibration sequence")
     args = parser.parse_args()
 
     dataset_keys = [d.strip() for d in args.datasets.split(",")]
@@ -300,6 +320,8 @@ def main():
         print(f"  SliM-LLM: ~{args.slim_bits}-bit salience-mixed external baseline")
     if args.with_smoothquant:
         print(f"  SmoothQuant: {args.smoothquant_bits}-bit per-channel absmax (alpha={args.smoothquant_alpha})")
+    if args.with_atom:
+        print(f"  Atom: {args.atom_bits}-bit group quant (group_size={args.atom_group_size})")
     print(f"{'='*65}\n")
 
     print("Loading model (BF16)...")
@@ -467,6 +489,33 @@ def main():
                 model, calib,
                 wbits=args.smoothquant_bits,
                 alpha=args.smoothquant_alpha),
+        })
+
+    if args.with_atom:
+        atom_key = f"atom{args.atom_bits}"
+        atom_size_mb = estimate_uniform_bits_size_bytes(
+            quantizer.model, num_layers, args.atom_bits) / 1e6
+        print(f"Atom ({args.atom_bits}-bit, group_size={args.atom_group_size}) size: "
+              f"{atom_size_mb:.2f} MB "
+              f"({(1 - atom_size_mb / baseline_size_mb) * 100:.1f}% smaller, "
+              f"{baseline_size_mb / atom_size_mb:.2f}x)")
+        external_baselines.append({
+            "key": atom_key,
+            "label": f"Atom ({args.atom_bits}-bit)",
+            "size_mb": atom_size_mb,
+            "samples": args.atom_samples,
+            "seqlen": args.atom_seqlen,
+            "banner": f"ATOM BASELINE ({args.atom_bits}-bit)",
+            "detail": (f"GSM8K train | {args.atom_samples} x "
+                       f"{args.atom_seqlen} tokens | group_size={args.atom_group_size} "
+                       f"| sym={args.atom_sym}"),
+            "apply": lambda model, calib: apply_atom_uniform(
+                model, calib,
+                wbits=args.atom_bits,
+                weight_group_size=args.atom_group_size,
+                w_sym=args.atom_sym,
+                w_clip_ratio=args.atom_clip_ratio,
+                quant_type=args.atom_quant_type),
         })
 
     method_sizes_mb = {
@@ -647,7 +696,12 @@ def main():
                               "lambda_salience": args.slim_lambda_salience,
                               "metric": args.slim_metric}
                         if s["key"].startswith("slim")
-                        else {"alpha": args.smoothquant_alpha}),
+                         else {"alpha": args.smoothquant_alpha}
+                         if s["key"].startswith("smoothquant")
+                         else {"group_size": args.atom_group_size,
+                               "sym": args.atom_sym,
+                               "clip_ratio": args.atom_clip_ratio,
+                               "quant_type": args.atom_quant_type}),
                     **({"measured_outlier_share": s["measured"]["outlier_share"],
                         "avg_bits_per_weight": s["measured"]["effective_bpw"]}
                        if "measured" in s else {}),
