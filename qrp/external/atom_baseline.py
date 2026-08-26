@@ -116,7 +116,7 @@ def apply_atom_uniform(
 
     n_layers = len(layers) if layers else 0
     if verbose:
-        print(f"[Atom] Quantizing {n_layers} layers → {wbits}-bit "
+        print(f"[Atom] Quantizing {n_layers} layers -> {wbits}-bit "
               f"{'symmetric' if w_sym else 'asymmetric'} group "
               f"(group_size={weight_group_size}, quant_type={quant_type}) ...")
 

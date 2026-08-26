@@ -1,0 +1,57 @@
+[
+  {
+    "id": 0,
+    "prompt": "Janet\u2019s ducks lay 16 eggs per day. She eats three for breakfast every morning and bakes muffins for her friends every day with four. She sells the remainder at the farmers' market daily for $2 per fresh duck egg. How much in dollars does she make every day at the farmers' market?",
+    "analysis": {
+      "layer_4": 0.4655888357651107,
+      "layer_8": 0.5164828790439759,
+      "layer_12": 0.5756969372385079,
+      "layer_16": 0.6629243329295238,
+      "layer_20": 0.19133001565353455
+    }
+  },
+  {
+    "id": 1,
+    "prompt": "A robe takes 2 bolts of blue fiber and half that much white fiber.  How many bolts in total does it take?",
+    "analysis": {
+      "layer_4": 0.4028352374440847,
+      "layer_8": 0.3594034848829485,
+      "layer_12": 0.4387815987740291,
+      "layer_16": 0.37112542962441675,
+      "layer_20": 0.2650498526048804
+    }
+  },
+  {
+    "id": 2,
+    "prompt": "Josh decides to try flipping a house.  He buys a house for $80,000 and then puts in $50,000 in repairs.  This increased the value of the house by 150%.  How much profit did he make?",
+    "analysis": {
+      "layer_4": 0.29043115410900383,
+      "layer_8": 0.43588571253037167,
+      "layer_12": 0.36706501538269487,
+      "layer_16": 0.3373114248994076,
+      "layer_20": 0.047025768135169455
+    }
+  },
+  {
+    "id": 3,
+    "prompt": "James decides to run 3 sprints 3 times a week.  He runs 60 meters each sprint.  How many total meters does he run a week?",
+    "analysis": {
+      "layer_4": 0.41982260749164996,
+      "layer_8": 0.3256664928068018,
+      "layer_12": 0.5531175911174776,
+      "layer_16": 0.21068002459871085,
+      "layer_20": 0.04959357065321735
+    }
+  },
+  {
+    "id": 4,
+    "prompt": "Every day, Wendi feeds each of her chickens three cups of mixed chicken feed, containing seeds, mealworms and vegetables to help keep them healthy.  She gives the chickens their feed in three separate meals. In the morning, she gives her flock of chickens 15 cups of feed.  In the afternoon, she gives her chickens another 25 cups of feed.  How many cups of feed does she need to give her chickens in the final meal of the day if the size of Wendi's flock is 20 chickens?",
+    "analysis": {
+      "layer_4": 0.2457514455876716,
+      "layer_8": 0.5651947051032825,
+      "layer_12": 0.36750184399087066,
+      "layer_16": 0.6547330240881547,
+      "layer_20": 0.17986709984358187
+    }
+  }
+]

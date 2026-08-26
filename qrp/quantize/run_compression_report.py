@@ -113,7 +113,7 @@ def main():
     })
 
     print_section(f"COMPRESSION BENCHMARK — {args.model_name}")
-    print(f"{'Config':<40} {'Acc':>7} {'Acc Drop':>9} {'Size (MB)':>10} {'Size ↓':>8} {'Ratio':>7}")
+    print(f"{'Config':<40} {'Acc':>7} {'Acc Drop':>9} {'Size (MB)':>10} {'Size':>8} {'Ratio':>7}")
     print("-" * 85)
 
     for r in rows:

@@ -73,6 +73,7 @@ def _load_vendored():
 
     _vendored.update(slim_gptq=mod,
                      utils={k: v[1] for k, v in loaded.items()})
+    mod.utils = _vendored["utils"]
     return mod
 
 

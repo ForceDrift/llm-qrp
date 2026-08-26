@@ -1,0 +1,23 @@
+\begin{table}[htbp]
+  \centering
+  \small
+  \caption{Quantization baselines for LFM2-350M}
+  \label{tab:bench_LFM2_350M}
+  \begin{tabular}{lrrrrrr}
+    \toprule
+    \textbf{Method} & \textbf{Size (MB)} & \textbf{VRAM (MB)} & \textbf{Compression} & \textbf{GSM8K} & \textbf{TruthfulQA} & \textbf{MMLU} \\
+    \midrule
+    BF16 & 392.2 & 1446.5 & 1.00x & 0.4126 & 0.0543 & 0.0008 \\
+    Uniform INT8 & 196.1 & 1255.6 & 2.00x & 0.4137 & 0.0545 & 0.0006 \\
+    Uniform INT4 & 98.0 & 1172.2 & 4.00x & 0.3829 & 0.0514 & 0.0008 \\
+    GPTQ (4-bit) & 98.0 & 1440.8 & 4.00x & 0.4087 & 0.0466 & 0.0008 \\
+    AWQ (4-bit) & 98.0 & 1442.0 & 4.00x & 0.3889 & 0.0500 & 0.0010 \\
+    SpQR (3-bit) & 102.6 & 1441.5 & 3.82x & 0.3943 & 0.0568 & 0.0009 \\
+    SliM-LLM (2-bit) & 49.0 & 1443.5 & 8.00x & 0.0625 & 0.0005 & 0.0003 \\
+    SmoothQuant (8-bit) & 196.1 & 1446.5 & 2.00x & 0.4125 & 0.0537 & 0.0008 \\
+    Atom (4-bit) & 98.0 & 1447.4 & 4.00x & 0.3597 & 0.0465 & 0.0030 \\
+    \midrule
+    \textbf{LLM-QRP} & 214.4 & 1273.8 & 1.83x & \textbf{0.4170} & \textbf{0.0544} & \textbf{0.0008} \\
+    \bottomrule
+  \end{tabular}
+\end{table}

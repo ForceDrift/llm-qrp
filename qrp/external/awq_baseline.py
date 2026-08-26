@@ -102,8 +102,11 @@ def _search_module_scale(inspect_module, linears2scale, x, kwargs,
                          pseudo_quantize, n_bit, q_group_size, n_grid=20):
     """Port of AWQ's _search_module_scale (external/awq auto_scale.py),
     device-agnostic."""
+    import inspect as _inspect
     x = x.to(next(inspect_module.parameters()).device)
-    org_out = inspect_module(x, **kwargs)
+    fwd_sig = _inspect.signature(inspect_module.forward)
+    safe_kwargs = {k: v for k, v in kwargs.items() if k in fwd_sig.parameters}
+    org_out = inspect_module(x, **safe_kwargs)
     if isinstance(org_out, tuple):
         org_out = org_out[0]
 
@@ -124,7 +127,7 @@ def _search_module_scale(inspect_module, linears2scale, x, kwargs,
                 fc.weight.data, n_bit=n_bit, zero_point=True,
                 q_group_size=q_group_size,
             ) / scales.view(1, -1).to(fc.weight.device)
-        out = inspect_module(x, **kwargs)
+        out = inspect_module(x, **safe_kwargs)
         if isinstance(out, tuple):
             out = out[0]
 
@@ -170,8 +173,14 @@ def _auto_clip_layer(w, input_feat, pseudo_quantize, n_bit, q_config,
     """Port of AWQ's auto_clip_layer (external/awq auto_clip.py),
     device-agnostic."""
     assert w.dim() == 2
+    orig_in_features = w.shape[1]
     group_size = q_config["q_group_size"] if q_config["q_group_size"] > 0 else w.shape[1]
     input_feat = input_feat.view(-1, input_feat.shape[-1])
+    _pad = 0
+    if w.shape[1] % group_size != 0:
+        _pad = group_size - (w.shape[1] % group_size)
+        w = torch.nn.functional.pad(w, (0, _pad))
+        input_feat = torch.nn.functional.pad(input_feat, (0, _pad))
     input_feat = input_feat.reshape(1, input_feat.shape[0], -1, group_size)
     step = max(1, input_feat.shape[1] // n_sample_token)
     input_feat = input_feat[:, ::step]
@@ -209,7 +218,12 @@ def _auto_clip_layer(w, input_feat, pseudo_quantize, n_bit, q_config,
 
     best_max_val = torch.cat(best_max_val_all, dim=0)
     _empty_cache()
-    return best_max_val.squeeze(1)
+    best_max_val = best_max_val.squeeze(1).squeeze(-1)
+    best_max_val = best_max_val.unsqueeze(-1).expand(-1, -1, group_size)
+    best_max_val = best_max_val.reshape(best_max_val.shape[0], -1)
+    if _pad:
+        best_max_val = best_max_val[:, :orig_in_features]
+    return best_max_val
 
 
 def _discover_smoothing_groups(block, named_linears):
@@ -373,10 +387,7 @@ def apply_awq_uniform(
                 clip_list.append((lin, max_val))
             for lin, max_val in clip_list:
                 max_val = max_val.to(lin.weight.device).to(lin.weight.dtype)
-                org_shape = lin.weight.shape
-                lin.weight.data = lin.weight.data.reshape(*max_val.shape[:2], -1)
                 lin.weight.data = torch.clamp(lin.weight.data, -max_val, max_val)
-                lin.weight.data = lin.weight.data.reshape(org_shape)
             del clip_list
             _empty_cache()
 

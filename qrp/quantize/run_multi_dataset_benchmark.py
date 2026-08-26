@@ -73,6 +73,10 @@ def evaluate_dataset(model, tokenizer, pairs, dataset_key):
     total_loss = 0.0
     valid = 0
 
+    if torch.cuda.is_available():
+        torch.cuda.reset_peak_memory_stats(model.device)
+        torch.cuda.synchronize(model.device)
+
     for question, answer in tqdm(pairs, desc=f"  Evaluating {dataset_key}", leave=False):
         if dataset_key == "gsm8k":
             prompt = f"Question: {question}\nAnswer: Let's think step by step\n"
@@ -94,9 +98,16 @@ def evaluate_dataset(model, tokenizer, pairs, dataset_key):
             total_loss += loss
             valid += 1
 
+    if torch.cuda.is_available():
+        torch.cuda.synchronize(model.device)
+        peak_bytes = torch.cuda.max_memory_allocated(model.device)
+        peak_mb = peak_bytes / (1024 * 1024)
+    else:
+        peak_mb = 0.0
+
     if valid == 0:
-        return 0.0
-    return math.exp(-total_loss / valid)
+        return 0.0, peak_mb
+    return math.exp(-total_loss / valid), peak_mb
 
 
 def estimate_size(model, layer_configs, num_layers):
@@ -127,7 +138,7 @@ def estimate_size(model, layer_configs, num_layers):
 def write_csv(rows, dataset_displays, path):
     ds_cols   = [d for d in dataset_displays]
     eff_cols  = [f"Eff {d}" for d in dataset_displays]
-    fieldnames = ["Model", "Size (MB)", "Compression"] + ds_cols + eff_cols
+    fieldnames = ["Model", "Size (MB)", "VRAM (MB)", "Compression"] + ds_cols + eff_cols
 
     with open(path, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
@@ -138,33 +149,38 @@ def write_csv(rows, dataset_displays, path):
 
 def write_latex(rows, dataset_displays, model_name, path):
     n_ds = len(dataset_displays)
-    col_spec = "l" + "r" * (2 + n_ds)   
-    ds_header  = " & ".join(dataset_displays)
-    eff_header = " & ".join(f"Eff ({d})" for d in dataset_displays)
+    col_spec = "l" + "r" * (3 + n_ds)
+    ds_header = " & ".join(dataset_displays)
 
     lines = [
-        r"\begin{table}[h]",
+        r"\begin{table}[htbp]",
         r"  \centering",
-        f"  \\caption{{Quantization Benchmark: "
-        f"{', '.join(r['Model'] for r in rows if 'LLM-QRP' not in r['Model'])} "
-        f"vs. LLM-QRP Optimal Mixed-Precision ({model_name})}}",
+        r"  \small",
+        f"  \\caption{{Quantization Benchmark: Baselines vs. LLM-QRP ({model_name})}}",
         r"  \label{tab:benchmark}",
         f"  \\begin{{tabular}}{{{col_spec}}}",
         r"    \toprule",
-        f"    \\textbf{{Model}} & \\textbf{{Size (MB)}} & \\textbf{{Compression}} & "
+        f"    \\textbf{{Method}} & \\textbf{{Size (MB)}} & \\textbf{{VRAM (MB)}} "
+            f"& \\textbf{{Compression}} & "
             + " & ".join(f"\\textbf{{{d}}}" for d in dataset_displays)
             + r" \\",
         r"    \midrule",
     ]
 
+    ds_keys_list = list(dataset_displays)
     for row in rows:
         if "LLM-QRP" in row["Model"]:
             lines.append(r"    \midrule")
-        size_str  = f"{row['Size (MB)']:.1f}"
-        cmpr_str  = row["Compression"]
-        ds_vals   = " & ".join(f"{row[d]:.4f}" for d in dataset_displays)
+        size_str = f"{row['Size (MB)']:.1f}"
+        vram_str = f"{row['VRAM (MB)']:.1f}" if row.get('VRAM (MB)', 0) > 0 else "-"
+        cmpr_str = row["Compression"]
+        ds_vals = []
+        for d in ds_keys_list:
+            val = row[d]
+            ds_vals.append(f"{val:.4f}")
+        ds_str = " & ".join(ds_vals)
         lines.append(
-            f"    {row['Model']} & {size_str} & {cmpr_str} & {ds_vals} \\\\"
+            f"    {row['Model']} & {size_str} & {vram_str} & {cmpr_str} & {ds_str} \\\\"
         )
 
     lines += [
@@ -536,9 +552,10 @@ def main():
 
     ds_pairs = {}
     ds_accs = {k: {} for k in dataset_keys}
+    ds_vrams = {k: {} for k in dataset_keys}
     for ds_key in dataset_keys:
         display = DATASET_REGISTRY[ds_key]["display"]
-        print(f"\n──── {display} ────")
+        print(f"\n---- {display} ----")
         pairs = load_eval_pairs(ds_key, args.samples)
         ds_pairs[ds_key] = pairs
 
@@ -548,9 +565,11 @@ def main():
                 quantizer.restore()
             else:
                 quantizer.quantize_layers(configs)
-            ds_accs[ds_key][key] = evaluate_dataset(
+            acc, vram = evaluate_dataset(
                 quantizer.model, quantizer.tokenizer, pairs, ds_key)
-            print(f"  {desc}: {ds_accs[ds_key][key]:.4f}")
+            ds_accs[ds_key][key] = acc
+            ds_vrams[ds_key][key] = vram
+            print(f"  {desc}: {acc:.4f}")
     quantizer.restore()
 
     for spec in external_baselines:
@@ -578,16 +597,21 @@ def main():
         for ds_key in dataset_keys:
             display = DATASET_REGISTRY[ds_key]["display"]
             print(f"  Evaluating {spec['label']} on {display}...")
-            ds_accs[ds_key][spec["key"]] = evaluate_dataset(
+            acc, vram = evaluate_dataset(
                 quantizer.model, quantizer.tokenizer,
                 ds_pairs[ds_key], ds_key)
+            ds_accs[ds_key][spec["key"]] = acc
+            ds_vrams[ds_key][spec["key"]] = vram
             print(f"  {spec['label']} [{display}]: "
-                  f"{ds_accs[ds_key][spec['key']]:.4f}")
+                  f"{acc:.4f}")
         quantizer.restore()
 
     method_order = ["bf16", "int8", "int4"]
     method_order += [s["key"] for s in external_baselines]
     method_order.append("mixed")
+
+    max_vram = {ds: max(ds_vrams[ds].get(k, 0.0) for k in method_order)
+                for ds in dataset_keys}
 
     ds_results = {}
     for ds_key in dataset_keys:
@@ -618,9 +642,12 @@ def main():
     table_rows = []
     for key in method_order:
         size_mb = method_sizes_mb[key]
+        peak_vrams = {ds: ds_vrams[ds].get(key, 0.0) for ds in dataset_keys}
+        max_vram_for_method = max(peak_vrams.values()) if peak_vrams else 0.0
         row = {
             "Model":       method_labels[key],
             "Size (MB)":   size_mb,
+            "VRAM (MB)":   max_vram_for_method,
             "Compression": f"{baseline_size_mb / size_mb:.2f}x",
         }
         for ds_key, r in ds_results.items():
@@ -633,7 +660,7 @@ def main():
     print("  RESULTS SUMMARY")
     print(f"{'='*75}")
     ds_col_w = 10
-    header = f"  {'Model':<28} {'Size':>9} {'Cmpr':>7}" + "".join(
+    header = f"  {'Model':<28} {'Size':>9} {'VRAM':>9} {'Cmpr':>7}" + "".join(
         f"  {r['display']:>{ds_col_w}}" for r in ds_results.values()
     )
     print(header)
@@ -644,9 +671,9 @@ def main():
             f"  {row[DATASET_REGISTRY[k]['display']]:>{ds_col_w}.4f}"
             for k in dataset_keys
         )
-        print(f"  {row['Model']:<28} {row['Size (MB)']:>8.1f}  {row['Compression']:>6}{ds_vals}")
+        print(f"  {row['Model']:<28} {row['Size (MB)']:>8.1f}  {row['VRAM (MB)']:>8.1f}  {row['Compression']:>6}{ds_vals}")
 
-    print(f"\n  Size:  {baseline_size_mb:.2f} MB → {opt_size_mb:.2f} MB  "
+    print(f"\n  Size:  {baseline_size_mb:.2f} MB -> {opt_size_mb:.2f} MB  "
           f"({size_reduction_pct:.1f}% reduction, {compression:.2f}x compression)")
     for ds_key, r in ds_results.items():
         print(f"  {r['display']:<12}")
@@ -716,6 +743,9 @@ def main():
                     },
                     "size_mb": {
                         m: round(v["methods"][m]["size_mb"], 4) for m in method_order
+                    },
+                    "vram_mb": {
+                        m: round(ds_vrams[k].get(m, 0.0), 2) for m in method_order
                     },
                     "efficiency": {
                         m: round(v["methods"][m]["eff"], 6) for m in method_order

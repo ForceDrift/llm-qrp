@@ -71,7 +71,7 @@ def quantize_tensor_channel_group(W: torch.tensor, n_bits, group_size, tiling, s
     assert n_bits < 16
 
     if group_size > 0:
-        assert W.shape[-1] % group_size == 0
+        pass  # partial last group handled by the loop below
 
     # group_size = 0 is per-channel quantization.
     if group_size == 0:
@@ -79,7 +79,7 @@ def quantize_tensor_channel_group(W: torch.tensor, n_bits, group_size, tiling, s
     else:
         for i1 in range(0, W.shape[1], group_size):
             i2 = min(i1 + group_size, W.shape[1])
-            w = W[:,i1:i2]
+            w = W[:,i1:i2].contiguous()
 
             # Continous channels share the same quantization setup.
             # This trick is used for efficiency consideration.

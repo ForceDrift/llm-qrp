@@ -63,7 +63,10 @@ def pseudo_quantize_tensor(
 ):
     org_w_shape = w.shape
     if q_group_size > 0:
-        assert org_w_shape[-1] % q_group_size == 0
+        pad = 0
+        if org_w_shape[-1] % q_group_size != 0:
+            pad = q_group_size - (org_w_shape[-1] % q_group_size)
+            w = torch.nn.functional.pad(w, (0, pad))
         w = w.reshape(-1, q_group_size)
     assert w.dim() == 2
     if zero_point:
@@ -95,10 +98,14 @@ def pseudo_quantize_tensor(
         ) * scales
     assert torch.isnan(w).sum() == 0
 
+    out_features = org_w_shape[-2] if len(org_w_shape) > 1 else org_w_shape[0]
+    w = w.reshape(out_features, -1)
+    if pad:
+        w = w[:, :org_w_shape[-1]]
     w = w.reshape(org_w_shape)
 
     if get_scale_zp:
-        return w, scales.view(w.shape[0], -1), zeros.view(w.shape[0], -1)
+        return w, scales.view(out_features, -1), zeros.view(out_features, -1)
     else:
         return w
 

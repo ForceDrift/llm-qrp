@@ -12,3 +12,6 @@ __pycache__/
 .vscode/
 .idea/
 *.csv
+
+# Saved quantized model weights (regenerable; too large for git)
+results/**/saved_models/

@@ -302,7 +302,7 @@ def main():
         results.append(result)
 
         label = (f"[{candidate['pct_4bit']}% 4-bit, {candidate['pct_8bit']}% 8-bit] "
-                 f"Acc: {acc:.4f} | Size↓: {size_reduction:.1f}% | Eff: {efficiency:.2f}")
+                 f"Acc: {acc:.4f} | Size: {size_reduction:.1f}% | Eff: {efficiency:.2f}")
         tqdm.write(label)
 
     valid_results = [r for r in results if r["accuracy"] >= accuracy_floor]
