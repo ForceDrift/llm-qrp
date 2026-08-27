@@ -41,13 +41,17 @@ This repository contains the code for a research pipeline that profiles where re
 Quick summary of the main files in the repository:
 
 * **Analysis & Ablation:**
-	+ `qrp/benchmark/run_analysis.py`: Extracts per-layer thinking scores on a chosen dataset.
-	+ `qrp/analysis/`: SLED metric (`sled.py`), entropy profiling (`entropy_by_layer.py`), score aggregation (`aggregate_scores.py`), ablation controller (`ablation_controller.py`).
+	+ `qrp/benchmark/run_analysis.py`: Extracts per-layer thinking scores on a chosen dataset (supports `--signals` to select signal subsets and `--variant` for output subdirectories).
+	+ `qrp/analysis/`: Sub-component SLED metric (`subcomponent_sled.py`, CoT-masked, attention/MLP residual decomposition, plus forward-only Information-Bottleneck Convergence Velocity via `entropy_velocity`), whole-layer SLED (`sled.py`), legacy injection-based entropy profiling (`entropy_by_layer.py`, deprecated for sub-component mode), score aggregation (`aggregate_scores.py`), ablation controller (`ablation_controller.py`).
 	+ `qrp/ablate/run_ablation.py`: Ablates layers to measure their contribution.
+	+ `qrp/ablate/run_signal_ablation.py`: Ablates over scoring-signal subsets (SLED, KL, Entropy) to compare reasoning accuracy vs compression trade-offs.
 * **Quantization:**
-	+ `qrp/quantize/quantizer.py`: `TargetedQuantizer`, per-layer INT8/FP4 quantization via `bitsandbytes`.
+	+ `qrp/quantize/allocation_core.py`: **Parameter-free** PCA fusion of profiling signals (first-principal-component loading weights on z-scored features) and an **exact 0-1 Multiple-Choice Knapsack** allocator over candidate bits `{2, 3, 4, 8, 16}` with non-linear precision fidelity (no λ-weighting, no min-max normalization, no manual layer percentiles).
++ `qrp/quantize/integer_quant.py`: `UniformIntLinear` (2/3/4-bit round-to-nearest) and `OutlierProtectedLinear` (Salient Outlier Channel Protection: top-0.1% channels kept as an unquantized BF16 sparse `W_fp16`, remainder low-bit).
+	+ `qrp/quantize/allocate_mixed_precision.py`: CLI that profiles sub-component scores into a Pareto frontier of memory-budget-optimal BF16/INT8/FP4 allocations and selects the most efficient one above the accuracy floor.
+	+ `qrp/quantize/quantizer.py`: `TargetedQuantizer`, per-layer *and* per-`(layer,{attn,mlp})` INT8/FP4 quantization via `bitsandbytes` (`quantize_layers` / `quantize_components`).
 	+ `qrp/quantize/run_quantize_sweep.py`: Sweeps threshold-based quantization configs.
-	+ `qrp/quantize/find_optimal_mixed_precision.py`: Searches all candidate mixed-precision configs and selects the most efficient one.
+	+ `qrp/quantize/find_optimal_mixed_precision.py`: Legacy percentile-grid layer search (kept for backward compatibility).
 	+ `qrp/quantize/export_quantized_model.py`: Exports the quantized checkpoint.
 	+ `qrp/quantize/run_compression_report.py`: Compression report and chart (accuracy vs size).
 	+ `qrp/quantize/run_multi_dataset_benchmark.py`: Multi-dataset benchmark producing Table 1 (BF16 / Uniform INT8 / Uniform INT4 / optional GPTQ, AWQ, SpQR, SliM-LLM, SmoothQuant, Atom / LLM-QRP), written to `benchmark_results.csv`, `benchmark_results.tex` and `multi_dataset_benchmark.json`.
@@ -65,6 +69,62 @@ Quick summary of the main files in the repository:
 	+ `run_test.ps1`: Full multi-model sweep (analysis, ablation, figures, quantization, mixed precision, reports).
 
 > Layers with the lowest reasoning density are quantized first; the search in `find_optimal_mixed_precision.py` maximizes compression subject to retaining at least `--min-accuracy-floor` of the BF16 baseline accuracy.
+
+### Sub-component bit-budget pipeline (evolved framework)
+
+The framework generalizes from whole-layer percentile sweeps to a sub-component,
+constrained-optimization pipeline. Each layer is split into an *attention* and an
+*MLP* component; SLED scores are computed on CoT-masked token positions, the
+**Information-Bottleneck Convergence Velocity** -- the average absolute
+vocabulary-entropy transition across each sub-block over CoT tokens,
+``DeltaH(l, c) = 1/|T_CoT| sum_t |H(P_in) - H(P_out)|`` -- is measured in the
+same forward pass, and the two signals are fused by projecting their z-scored
+feature vectors onto the first principal component (PCA loadings learned from
+model dynamics), producing the criticality
+``R_{l,c} = w_1 . tilde{S}_{SLED}(l,c) + w_2 . tilde{DeltaH}(l,c)``.
+
+**Salient Outlier Channel Protection** extracts the top-0.1% highest-activation
+weight channels per sub-matrix into an unquantized BF16 sparse matrix ``W_fp16``
+(``outlier_channels.json`` emitted during profiling); only the remaining 99.9%
+of each matrix is quantized to low precision.
+
+Precision assignment is then solved as a **0-1 Multiple-Choice Knapsack** over
+candidate bits ``{2, 3, 4, 8, 16}`` for a target average budget
+``B_target`` (bits/param, e.g. 3.5):
+
+    maximize    sum_{l,c,b} x_{l,c,b} . R_{l,c} . f_{l,c}(b)
+    s.t.        1/P_total . sum_{l,c,b} x_{l,c,b} . P_{l,c} . b <= B_target,
+                sum_b x_{l,c,b} = 1,   x_{l,c,b} in {0, 1}
+
+with ``f(b)`` a non-linear precision fidelity anchored on the measured
+convergence velocity. The step-wise percentile grid search is removed.
+
+```bash
+# 1. Profile per-(layer,{attn,mlp}) SLED + entropy scores over CoT reasoning tokens
+python -m qrp.benchmark.run_analysis \
+    --model-name HuggingFaceTB/SmolLM2-135M \
+    --dataset gsm8k \
+    --samples 50 \
+    --output-folder ./results \
+    --granularity subcomponent \
+    --cot
+
+# 2. Allocate precision by solving the bit-budget 0-1 knapsack; evaluate the frontier
+python -m qrp.quantize.allocate_mixed_precision \
+    --model-name HuggingFaceTB/SmolLM2-135M \
+    --output-folder ./results \
+    --samples 50 \
+    --bits-per-param 3.5 \
+    --min-accuracy-floor 0.5 \
+    --bits-step 0.5
+```
+
+Outputs: per-component scores in `<output-folder>/<model>/<dataset>/subcomponent_scores.json`,
+the protected channel lists in `.../outlier_channels.json`, and the selected
+allocation (with full frontier) in
+`<output-folder>/<model>/<dataset>/quantize/optimal_mixed_precision.json`.
+Run `allocate_mixed_precision --help` for the budget/floor knobs; no percentiles
+and no λ-weights are involved.
 
 ### Running the end-to-end pipeline
 
@@ -105,6 +165,43 @@ python -m qrp.quantize.run_multi_dataset_benchmark \
 ```
 
 Step 2 evaluates every dataset under up to ten conditions — the untouched **BF16** model, a **Uniform INT8** model (all layers 8-bit), a **Uniform INT4** model (all layers 4-bit), optional uniform **GPTQ**, **AWQ**, **SpQR**, **SliM-LLM**, **SmoothQuant**, and **Atom** models (all from the vendored reference implementations, calibrated on GSM8K train sequences), and the **LLM-QRP** optimal mix — reporting accuracy, estimated size (MB), compression ratio, and accuracy-per-MB efficiency for each. Results are stored in `./results/<model_name>/quantize/`.
+
+### Signal-subset ablation (Reviewer response)
+
+To compare reasoning accuracy vs compression/VRAM trade-off across different scoring-signal subsets (SLED only, KL only, Entropy only, SLED+KL, SLED+Entropy, KL+Entropy, and the full combination), run:
+
+```bash
+python -m qrp.ablate.run_signal_ablation \
+    --model-name HuggingFaceTB/SmolLM2-135M \
+    --dataset gsm8k \
+    --samples 50 \
+    --output-folder ./results
+```
+
+Optionally restrict to specific variants:
+
+```bash
+python -m qrp.ablate.run_signal_ablation \
+    --model-name HuggingFaceTB/SmolLM2-135M \
+    --dataset gsm8k \
+    --samples 50 \
+    --output-folder ./results \
+    --variants sled_only kl_only full
+```
+
+The script runs the full pipeline (analysis → aggregation → optimal-mixed-precision search) for each variant, then prints a comparison table and saves `signal_ablation_summary.json` to the output folder. Each variant's intermediate files are stored under `<output_folder>/<model_name>/<variant>/`.
+
+You can also run the analysis step for a single signal combination directly:
+
+```bash
+python -m qrp.benchmark.run_analysis \
+    --model-name HuggingFaceTB/SmolLM2-135M \
+    --dataset gsm8k \
+    --samples 50 \
+    --output-folder ./results \
+    --variant sled_kl \
+    --signals sled kl
+```
 
 ### Running the unified benchmarking suite
 
