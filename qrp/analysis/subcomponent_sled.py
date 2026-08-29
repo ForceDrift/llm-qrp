@@ -88,6 +88,10 @@ class SubComponentSLED:
         h = hidden
         if self.final_norm is not None:
             h = self.final_norm(h)
+        # Cast to the LM-head weight dtype so float32 residuals work with a
+        # bf16/fp16 model (avoids "mat1 and mat2 must have the same dtype").
+        if h.dtype != self.lm_head.weight.dtype:
+            h = h.to(self.lm_head.weight.dtype)
         return self.lm_head(h)
 
     # ------------------------------------------------------------------ #

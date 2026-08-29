@@ -53,7 +53,10 @@ from tqdm import tqdm
 from qrp.analysis.subcomponent_sled import COMPONENTS
 from qrp.model_mapper import get_layer_structure, get_model_layers
 from qrp.quantize.allocation_core import (  # noqa: F401  (re-exported API)
+    BITS,
     BYTES_PER_PARAM,
+    LOW3_MAX_FRAC,
+    LOW6_MAX_FRAC,
     MpcAllocator,
     pca_criticality,
     sigmoid,
@@ -136,8 +139,15 @@ def evaluate_gsm8k(model, tokenizer, dataset):
     return math.exp(-avg_loss) if avg_loss != float("inf") else 0.0
 
 
-def select_best(frontier_results, accuracy_floor, baseline_acc, baseline_size):
-    """Pick the most efficient candidate above the accuracy floor."""
+def select_best(frontier_results, accuracy_floor, baseline_acc, baseline_size,
+                lossless_tol=1.5):
+    """Pick the most efficient candidate above the accuracy floor.
+
+    If any quantized candidate is effectively near-lossless (accuracy within
+    ``lossless_tol`` percent of baseline), prefer the highest-compression one of
+    those, so noise-level differences near baseline don't pick a tiny-compression
+    point that merely measured marginally above baseline.
+    """
     for r in frontier_results:
         acc_drop = (1.0 - r["accuracy"] / baseline_acc) * 100.0 if baseline_acc > 0 else 0.0
         if acc_drop > 0.01:
@@ -154,6 +164,10 @@ def select_best(frontier_results, accuracy_floor, baseline_acc, baseline_size):
         valid = frontier_results
     quantized = [r for r in valid if r["size_reduction_pct"] > 0.0]
     pool = quantized if quantized else valid
+
+    within = [r for r in pool if r["accuracy_drop_pct"] <= lossless_tol]
+    if within:
+        return max(within, key=lambda x: x["size_reduction_pct"])
     return max(pool, key=lambda x: x["efficiency"])
 
 
@@ -219,6 +233,10 @@ def main():
     parser.add_argument("--min-accuracy-floor", type=float, default=0.5)
     parser.add_argument("--bits-step", type=float, default=0.5,
                         help="Density step (bits/param) for the frontier sweep")
+    parser.add_argument("--low3-max-frac", type=float, default=LOW3_MAX_FRAC,
+                        help="Max fraction of components allowed at 3-bit (alloy cap)")
+    parser.add_argument("--low6-max-frac", type=float, default=LOW6_MAX_FRAC,
+                        help="Max fraction of components allowed at <=6-bit (alloy cap)")
     parser.add_argument("--target-densities", type=str, default=None,
                         help="Comma-separated explicit bit budgets (2.0-16.0)")
     parser.add_argument("--plot", action="store_true", help="Emit a frontier plot")
@@ -253,16 +271,17 @@ def main():
     params = estimate_component_params(quantizer.model, num_layers)
 
     outlier_share = estimate_actual_outlier_share(quantizer.model, num_layers, outlier_channels)
-    allocator = MpcAllocator(criticality, params, delta_h_hat, outlier_share=outlier_share)
+    allocator = MpcAllocator(criticality, params, delta_h_hat, outlier_share=outlier_share,
+                             low3_max_frac=args.low3_max_frac, low6_max_frac=args.low6_max_frac)
 
     if args.target_densities:
         targets = [float(x) for x in args.target_densities.split(",")]
     else:
-        targets = list(np.arange(2.0, 16.0 + args.bits_step, args.bits_step))
+        targets = list(np.arange(min(BITS), 16.0 + args.bits_step, args.bits_step))
         if not any(abs(t - args.bits_per_param) < 1e-9 for t in targets):
             targets = sorted(targets + [args.bits_per_param])
-    if args.bits_per_param < 2.0:
-        raise SystemExit("--bits-per-param must be >= 2.0")
+    if args.bits_per_param < min(BITS):
+        raise SystemExit(f"--bits-per-param must be >= {min(BITS)}")
 
     print(f"\nMCKP frontier: {len(targets)} density targets, "
           f"outlier_share={outlier_share:.5f} ({len(outlier_channels)} comps protected)")
@@ -291,15 +310,22 @@ def main():
         r["component_configs"] = cfg
         frontier_results.append(r)
         tqdm.write(
-            f"[2b={r['n_2bit']} 3b={r['n_3bit']} 4b={r['n_4bit']} "
+            f"[2b={r['n_2bit']} 3b={r['n_3bit']} 4b={r['n_4bit']} 6b={r['n_6bit']} "
             f"8b={r['n_8bit']} 16b={r['n_16bit']}] "
-            f"{r['bits_per_param']:.2f} bpw  size↓ {r['size_reduction_pct']:.1f}%  acc {acc:.4f}"
+            f"{r['bits_per_param']:.2f} bpw  size-> {r['size_reduction_pct']:.1f}%  acc {acc:.4f}"
         )
 
     if not frontier_results:
         raise SystemExit("Frontier is empty; nothing to select.")
 
     best = select_best(frontier_results, accuracy_floor, baseline_acc, baseline_size)
+
+    from collections import defaultdict
+    layer_votes = defaultdict(list)
+    for cid, bit in best["config"].items():
+        layer_str, _c = cid.rsplit(".", 1)
+        layer_votes[int(layer_str)].append(bit)
+    layer_configs = {l: max(bits, key=bits.count) for l, bits in layer_votes.items()}
 
     out_dir = os.path.join(base_dir, "quantize")
     os.makedirs(out_dir, exist_ok=True)
@@ -325,9 +351,11 @@ def main():
             "n_2bit": best["n_2bit"],
             "n_3bit": best["n_3bit"],
             "n_4bit": best["n_4bit"],
+            "n_6bit": best["n_6bit"],
             "n_8bit": best["n_8bit"],
             "n_16bit": best["n_16bit"],
             "component_configs": best["config"],
+            "layer_configs": layer_configs,
         },
         "frontier": [
             {
@@ -339,6 +367,7 @@ def main():
                 "n_2bit": r["n_2bit"],
                 "n_3bit": r["n_3bit"],
                 "n_4bit": r["n_4bit"],
+                "n_6bit": r["n_6bit"],
                 "n_8bit": r["n_8bit"],
                 "n_16bit": r["n_16bit"],
             }

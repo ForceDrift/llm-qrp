@@ -243,7 +243,7 @@ def main():
     num_layers = len(sorted_layers)
 
     print(f"\nLoaded {num_layers} layer scores from {aggregated_file}")
-    print(f"Layer score range: {sorted_layers[0][1]:.4f} — {sorted_layers[-1][1]:.4f}")
+    print(f"Layer score range: {sorted_layers[0][1]:.4f} - {sorted_layers[-1][1]:.4f}")
 
     print("\nLoading model and dataset...")
     quantizer = TargetedQuantizer(args.model_name)

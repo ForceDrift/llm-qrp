@@ -1,0 +1,395 @@
+{
+  "model_name": "Qwen/Qwen2.5-0.5B",
+  "dataset": null,
+  "signals": [
+    "sled",
+    "entropy"
+  ],
+  "cot_masked": true,
+  "components": [
+    {
+      "id": "0.attn",
+      "layer": 0,
+      "component": "attn",
+      "sled": 0.9001976361561447,
+      "delta_h": 0.00013208505966758822,
+      "samples": 100
+    },
+    {
+      "id": "0.mlp",
+      "layer": 0,
+      "component": "mlp",
+      "sled": 0.900158513569698,
+      "delta_h": 0.0031716057378798723,
+      "samples": 100
+    },
+    {
+      "id": "1.attn",
+      "layer": 1,
+      "component": "attn",
+      "sled": 0.9000783523907014,
+      "delta_h": 0.00277331366436556,
+      "samples": 100
+    },
+    {
+      "id": "1.mlp",
+      "layer": 1,
+      "component": "mlp",
+      "sled": 0.9000855650512624,
+      "delta_h": 0.0031346653285436333,
+      "samples": 100
+    },
+    {
+      "id": "10.attn",
+      "layer": 10,
+      "component": "attn",
+      "sled": 0.8999057455455872,
+      "delta_h": 0.007551283040083945,
+      "samples": 100
+    },
+    {
+      "id": "10.mlp",
+      "layer": 10,
+      "component": "mlp",
+      "sled": 0.8999759984952062,
+      "delta_h": 0.00706064316444099,
+      "samples": 100
+    },
+    {
+      "id": "11.attn",
+      "layer": 11,
+      "component": "attn",
+      "sled": 0.8999551676005055,
+      "delta_h": 0.006989633047487587,
+      "samples": 100
+    },
+    {
+      "id": "11.mlp",
+      "layer": 11,
+      "component": "mlp",
+      "sled": 0.8999125433106749,
+      "delta_h": 0.00517909023212269,
+      "samples": 100
+    },
+    {
+      "id": "12.attn",
+      "layer": 12,
+      "component": "attn",
+      "sled": 0.8999179937405724,
+      "delta_h": 0.00452518085250631,
+      "samples": 100
+    },
+    {
+      "id": "12.mlp",
+      "layer": 12,
+      "component": "mlp",
+      "sled": 0.8999297291484372,
+      "delta_h": 0.005886826221831143,
+      "samples": 100
+    },
+    {
+      "id": "13.attn",
+      "layer": 13,
+      "component": "attn",
+      "sled": 0.8998952970499442,
+      "delta_h": 0.007140200694557279,
+      "samples": 100
+    },
+    {
+      "id": "13.mlp",
+      "layer": 13,
+      "component": "mlp",
+      "sled": 0.8999409457637824,
+      "delta_h": 0.007848106175661087,
+      "samples": 100
+    },
+    {
+      "id": "14.attn",
+      "layer": 14,
+      "component": "attn",
+      "sled": 0.8998761834231097,
+      "delta_h": 0.008761893655173481,
+      "samples": 100
+    },
+    {
+      "id": "14.mlp",
+      "layer": 14,
+      "component": "mlp",
+      "sled": 0.8998438760984903,
+      "delta_h": 0.008076710775494576,
+      "samples": 100
+    },
+    {
+      "id": "15.attn",
+      "layer": 15,
+      "component": "attn",
+      "sled": 0.8998134579227777,
+      "delta_h": 0.012710775206796825,
+      "samples": 100
+    },
+    {
+      "id": "15.mlp",
+      "layer": 15,
+      "component": "mlp",
+      "sled": 0.8997705214856443,
+      "delta_h": 0.012792306058108806,
+      "samples": 100
+    },
+    {
+      "id": "16.attn",
+      "layer": 16,
+      "component": "attn",
+      "sled": 0.8990726978929774,
+      "delta_h": 0.005785985779948532,
+      "samples": 100
+    },
+    {
+      "id": "16.mlp",
+      "layer": 16,
+      "component": "mlp",
+      "sled": 0.8989188251908657,
+      "delta_h": 0.02105284059420228,
+      "samples": 100
+    },
+    {
+      "id": "17.attn",
+      "layer": 17,
+      "component": "attn",
+      "sled": 0.898464848149618,
+      "delta_h": 0.030099768713116645,
+      "samples": 100
+    },
+    {
+      "id": "17.mlp",
+      "layer": 17,
+      "component": "mlp",
+      "sled": 0.8985062195242984,
+      "delta_h": 0.04094616813585162,
+      "samples": 100
+    },
+    {
+      "id": "18.attn",
+      "layer": 18,
+      "component": "attn",
+      "sled": 0.8983352960020327,
+      "delta_h": 0.03124647930264473,
+      "samples": 100
+    },
+    {
+      "id": "18.mlp",
+      "layer": 18,
+      "component": "mlp",
+      "sled": 0.8981343496831908,
+      "delta_h": 0.047425357550382616,
+      "samples": 100
+    },
+    {
+      "id": "19.attn",
+      "layer": 19,
+      "component": "attn",
+      "sled": 0.8980024324007099,
+      "delta_h": 0.026602665539830924,
+      "samples": 100
+    },
+    {
+      "id": "19.mlp",
+      "layer": 19,
+      "component": "mlp",
+      "sled": 0.8971714654556889,
+      "delta_h": 0.05160699211061001,
+      "samples": 100
+    },
+    {
+      "id": "2.attn",
+      "layer": 2,
+      "component": "attn",
+      "sled": 0.9000598056037162,
+      "delta_h": 0.0030978212761692703,
+      "samples": 100
+    },
+    {
+      "id": "2.mlp",
+      "layer": 2,
+      "component": "mlp",
+      "sled": 0.900056755317987,
+      "delta_h": 0.002069653943181038,
+      "samples": 100
+    },
+    {
+      "id": "20.attn",
+      "layer": 20,
+      "component": "attn",
+      "sled": 0.8961623183337879,
+      "delta_h": 0.10107034057378769,
+      "samples": 100
+    },
+    {
+      "id": "20.mlp",
+      "layer": 20,
+      "component": "mlp",
+      "sled": 0.8939946356575574,
+      "delta_h": 0.21225227400660515,
+      "samples": 100
+    },
+    {
+      "id": "21.attn",
+      "layer": 21,
+      "component": "attn",
+      "sled": 0.8929585743886932,
+      "delta_h": 0.202729694545269,
+      "samples": 100
+    },
+    {
+      "id": "21.mlp",
+      "layer": 21,
+      "component": "mlp",
+      "sled": 0.8924897996404901,
+      "delta_h": 0.3150816535949707,
+      "samples": 100
+    },
+    {
+      "id": "22.attn",
+      "layer": 22,
+      "component": "attn",
+      "sled": 0.8915675701113903,
+      "delta_h": 0.10891089517623186,
+      "samples": 100
+    },
+    {
+      "id": "22.mlp",
+      "layer": 22,
+      "component": "mlp",
+      "sled": 0.8928153312002235,
+      "delta_h": 0.1685397133976221,
+      "samples": 100
+    },
+    {
+      "id": "23.attn",
+      "layer": 23,
+      "component": "attn",
+      "sled": 0.8923355492702266,
+      "delta_h": 0.6101747846603394,
+      "samples": 100
+    },
+    {
+      "id": "23.mlp",
+      "layer": 23,
+      "component": "mlp",
+      "sled": 0.0,
+      "delta_h": 9.484368686676026,
+      "samples": 100
+    },
+    {
+      "id": "3.attn",
+      "layer": 3,
+      "component": "attn",
+      "sled": 0.9000072269590548,
+      "delta_h": 0.0034436827711761,
+      "samples": 100
+    },
+    {
+      "id": "3.mlp",
+      "layer": 3,
+      "component": "mlp",
+      "sled": 0.9000309029480931,
+      "delta_h": 0.0021911605191417037,
+      "samples": 100
+    },
+    {
+      "id": "4.attn",
+      "layer": 4,
+      "component": "attn",
+      "sled": 0.9000223644825924,
+      "delta_h": 0.0016993932647164911,
+      "samples": 100
+    },
+    {
+      "id": "4.mlp",
+      "layer": 4,
+      "component": "mlp",
+      "sled": 0.9000600372457076,
+      "delta_h": 0.003106658507604152,
+      "samples": 100
+    },
+    {
+      "id": "5.attn",
+      "layer": 5,
+      "component": "attn",
+      "sled": 0.9000308703418023,
+      "delta_h": 0.004012420037761331,
+      "samples": 100
+    },
+    {
+      "id": "5.mlp",
+      "layer": 5,
+      "component": "mlp",
+      "sled": 0.9000361962305193,
+      "delta_h": 0.0027885017078369857,
+      "samples": 100
+    },
+    {
+      "id": "6.attn",
+      "layer": 6,
+      "component": "attn",
+      "sled": 0.8999766034552071,
+      "delta_h": 0.008764764121733605,
+      "samples": 100
+    },
+    {
+      "id": "6.mlp",
+      "layer": 6,
+      "component": "mlp",
+      "sled": 0.8999886221775132,
+      "delta_h": 0.004589447125326842,
+      "samples": 100
+    },
+    {
+      "id": "7.attn",
+      "layer": 7,
+      "component": "attn",
+      "sled": 0.8999897114062116,
+      "delta_h": 0.005772988828830421,
+      "samples": 100
+    },
+    {
+      "id": "7.mlp",
+      "layer": 7,
+      "component": "mlp",
+      "sled": 0.8999345958724271,
+      "delta_h": 0.0032500465563498437,
+      "samples": 100
+    },
+    {
+      "id": "8.attn",
+      "layer": 8,
+      "component": "attn",
+      "sled": 0.8999225431807006,
+      "delta_h": 0.005929128956049681,
+      "samples": 100
+    },
+    {
+      "id": "8.mlp",
+      "layer": 8,
+      "component": "mlp",
+      "sled": 0.899944158093993,
+      "delta_h": 0.005705206082202494,
+      "samples": 100
+    },
+    {
+      "id": "9.attn",
+      "layer": 9,
+      "component": "attn",
+      "sled": 0.8999123534557738,
+      "delta_h": 0.004641295012552291,
+      "samples": 100
+    },
+    {
+      "id": "9.mlp",
+      "layer": 9,
+      "component": "mlp",
+      "sled": 0.899956965795533,
+      "delta_h": 0.005369871724396944,
+      "samples": 100
+    }
+  ]
+}

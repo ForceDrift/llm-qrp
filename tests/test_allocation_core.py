@@ -15,6 +15,11 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from qrp.quantize.allocation_core import (  # noqa: E402
     BITS,
     BYTES_PER_PARAM,
+    CRITICAL_MIN_BITS,
+    CRITICAL_MIN_SHARE,
+    CRITICAL_R_THRESHOLD,
+    LOW3_MAX_FRAC,
+    LOW6_MAX_FRAC,
     MpcAllocator,
     fidelity,
     pca_criticality,
@@ -104,8 +109,8 @@ def test_pca_zero_variance_signal_dropped():
 # Precision fidelity f(b)
 # --------------------------------------------------------------------------- #
 def test_bits_and_bytes_table():
-    assert tuple(BITS) == (2, 3, 4, 8, 16)
-    assert BYTES_PER_PARAM == {2: 0.25, 3: 0.375, 4: 0.5, 8: 1.0, 16: 2.0}
+    assert tuple(BITS) == (3, 4, 6, 8, 16)
+    assert BYTES_PER_PARAM == {3: 0.375, 4: 0.5, 6: 0.75, 8: 1.0, 16: 2.0}
 
 
 def test_fidelity_monotone_and_anchored():
@@ -119,8 +124,11 @@ def test_fidelity_monotone_and_anchored():
     assert abs(fs[4] - (1.0 - dh)) < 1e-12
     # non-linear: midpoint f(10) would be (1+f4)/2 if linear in b
     f10_linear = 1.0 - dh * ((16.0 - 10.0) / 12.0)
-    assert abs(fs[8] - (1.0 - dh * ((16.0 - 8.0) / 12.0) ** 2.0)) < 1e-12
+    assert abs(fs[8] - (1.0 - dh * ((16.0 - 8.0) / 12.0) ** 3.0)) < 1e-12
     assert abs(f10_linear - fs[8]) > 1e-6
+    # cubic curvature is steeper under low bits than the old quadratic: the
+    # destructive 3-bit band is priced well below the 4-bit anchor.
+    assert (1.0 - dh) - fidelity(3, dh) > dh * 0.2
 
 
 def test_fidelity_strong_bottleneck_loses_more():
@@ -138,45 +146,62 @@ def test_fidelity_clamped_non_negative():
 # --------------------------------------------------------------------------- #
 def _make_alloc(n=4, outlier_share=0.0):
     ids = [f"{i}.{c}" for i in range(n // 2) for c in ("attn", "mlp")]
-    crit = {cid: 0.2 + 0.8 * i / max(1.0, len(ids) - 1) for i, cid in enumerate(ids)}
+    # Keep every R below CRITICAL_R_THRESHOLD and disable the min-share guard so
+    # the general allocation tests exercise the unconstrained Knapsack.
+    # Critical shielding is tested explicitly in the dedicated shielding tests.
+    # Bulk low-bit caps are likewise disabled here; they are exercised in the
+    # dedicated cap tests.
+    crit = {cid: 0.1 + 0.5 * i / max(1.0, len(ids) - 1) for i, cid in enumerate(ids)}
     p = {cid: 100 * (1 + i % 3) for i, cid in enumerate(ids)}
     dh = {cid: 0.5 for cid in ids}
-    return MpcAllocator(crit, p, dh, outlier_share=outlier_share)
+    return MpcAllocator(crit, p, dh, outlier_share=outlier_share,
+                        critical_min_share=0.0, low3_max_frac=1.0, low6_max_frac=1.0)
 
 
 def _bruteforce(alloc, budget_bits_per_param):
     ids, bits = alloc.ids, alloc.bits
+    critical = alloc._critical_mask
+    allowed = [[b for b in bits
+                if not (critical[i] and b < alloc.critical_min_bits)]
+               for i in range(len(ids))]
     best_v, best_config = -1e300, None
+    n_optima = 0
     rhs = budget_bits_per_param * alloc.p_total
-    for combo in itertools.product(bits, repeat=len(ids)):
+    for combo in itertools.product(*allowed):
         total_bits = sum(alloc._weight(i, b) for i, b in enumerate(combo))
         if total_bits > rhs * (1.0 + 1e-12):
             continue
+        # bulk low-bit caps
+        if sum(1 for b in combo if b == 3) > alloc.max_low3:
+            continue
+        if sum(1 for b in combo if b <= 6) > alloc.max_low6:
+            continue
         v = sum(alloc._value(i, b) for i, b in enumerate(combo))
         if v > best_v + 1e-12:
-            best_v, best_config = v, {cid: f"{b}bit" for cid, b in zip(ids, combo)}
-    return best_v, best_config
+            best_v, best_config, n_optima = v, {cid: f"{b}bit" for cid, b in zip(ids, combo)}, 1
+        elif abs(v - best_v) < 1e-12:
+            n_optima += 1
+    return best_v, best_config, n_optima
 
 
 def test_allocate_matches_bruteforce():
-    alloc = _make_alloc(n=4)  # 2 components x 2 layers -> 16 configs? no: 4 choices^k
-    for target in (2.5, 3.5, 5.0, 8.0, 12.0):
+    alloc = _make_alloc(n=4)  # 2 components x 2 layers -> 4 choices^k
+    for target in (3.0, 3.5, 5.0, 8.0, 12.0):
         cand = alloc.allocate(target)
-        bf_v, bf_cfg = _bruteforce(alloc, target)
+        bf_v, bf_cfg, n_opt = _bruteforce(alloc, target)
         assert abs(cand["value"] - bf_v) < 1e-9
         # if brute-force optimum is unique, configs must match exactly
-        if sum(alloc._value(i, b) for i, b in enumerate(
-                [int(bf_cfg[cid].replace("bit", "")) for cid in alloc.ids])) == bf_v:
+        if n_opt == 1:
             assert cand["config"] == bf_cfg
 
 
 def test_allocate_respects_budget():
     alloc = _make_alloc(n=6)
-    for target in (2.5, 3.0, 4.0, 6.0, 10.0):
+    for target in (3.0, 4.0, 6.0, 10.0, 12.0):
         cand = alloc.allocate(target)
         assert cand["bits_per_param"] <= target + 0.05
         assert cand["target_bits_per_param"] == target
-        total = cand["n_2bit"] + cand["n_3bit"] + cand["n_4bit"] + cand["n_8bit"] + cand["n_16bit"]
+        total = cand["n_2bit"] + cand["n_3bit"] + cand["n_4bit"] + cand["n_6bit"] + cand["n_8bit"] + cand["n_16bit"]
         assert total == alloc.n
 
 
@@ -189,8 +214,8 @@ def test_allocate_full_precision_at_16():
 
 def test_allocate_minimum_precision():
     alloc = _make_alloc(n=4)
-    cand = alloc.allocate(2.0)
-    assert all(b == "2bit" for b in cand["config"].values())
+    cand = alloc.allocate(min(BITS))
+    assert all(b == f"{min(BITS)}bit" for b in cand["config"].values())
 
 
 def test_criticality_orders_compression():
@@ -206,6 +231,95 @@ def test_criticality_orders_compression():
     if compressed:
         max_compressed_rank = max(order.index(c) for c in compressed)
         assert all(order.index(c) <= max_compressed_rank for c in compressed)
+
+
+def test_critical_components_are_shielded():
+    # A component with R >= CRITICAL_R_THRESHOLD must never be quantized below
+    # CRITICAL_MIN_BITS even at a very aggressive budget.
+    ids = sorted(f"{i}.{c}" for i in range(4) for c in ("attn", "mlp"))
+    crit = {cid: 0.9 for cid in ids}  # all critical -> all shielded
+    p = {cid: 1000 for cid in ids}
+    dh = {cid: 0.5 for cid in ids}
+    alloc = MpcAllocator(crit, p, dh)
+    cand = alloc.allocate(min(BITS))  # most aggressive budget possible
+    for cid, b in cand["config"].items():
+        assert int(b.replace("bit", "")) >= CRITICAL_MIN_BITS
+
+
+def test_critical_min_share_guard():
+    # Defensive guard: even if no component clears the raw threshold, the top
+    # CRITICAL_MIN_SHARE fraction must still be shielded.
+    ids = sorted(f"{i}.{c}" for i in range(4) for c in ("attn", "mlp"))
+    n = len(ids)
+    crit = {cid: 0.2 for cid in ids}  # all below threshold
+    p = {cid: 1000 for cid in ids}
+    dh = {cid: 0.5 for cid in ids}
+    alloc = MpcAllocator(crit, p, dh)
+    k_min = max(1, int(np.ceil(CRITICAL_MIN_SHARE * n)))
+    assert alloc.n_critical == k_min
+    cand = alloc.allocate(min(BITS))
+    shielded = [cid for cid, b in cand["config"].items()
+                if int(b.replace("bit", "")) >= CRITICAL_MIN_BITS]
+    assert len(shielded) >= k_min
+
+
+def _make_capped_alloc(n=8, low3_frac=0.25, low6_frac=0.5, crit=0.1):
+    ids = [f"{i}.{c}" for i in range(n // 2) for c in ("attn", "mlp")]
+    crit_d = {cid: crit for cid in ids}
+    p = {cid: 100 * (1 + i % 3) for i, cid in enumerate(ids)}
+    dh = {cid: 0.5 for cid in ids}
+    return MpcAllocator(crit_d, p, dh, outlier_share=0.0, critical_min_share=0.0,
+                        low3_max_frac=low3_frac, low6_max_frac=low6_frac)
+
+
+def test_bulk_low3_cap_respected():
+    # n=8 -> max_low3 = ceil(0.25*8) = 2, max_low6 = ceil(0.5*8) = 4.
+    alloc = _make_capped_alloc(n=8, low3_frac=0.25, low6_frac=0.5)
+    assert alloc.max_low3 == 2
+    assert alloc.max_low6 == 4
+    for target in (3.0, 4.0, 8.0):
+        cand = alloc.allocate(target)
+        assert cand["n_3bit"] <= alloc.max_low3
+        assert (cand["n_3bit"] + cand["n_4bit"] + cand["n_6bit"]) <= alloc.max_low6
+
+
+def test_bulk_low6_cap_respected():
+    # n=8 -> max_low6 = ceil(0.25*8) = 2 components may be <=6-bit.
+    alloc = _make_capped_alloc(n=8, low3_frac=0.0, low6_frac=0.25)
+    assert alloc.max_low3 == 0
+    assert alloc.max_low6 == 2
+    cand = alloc.allocate(4.0)
+    assert cand["n_3bit"] == 0
+    assert (cand["n_4bit"] + cand["n_6bit"]) <= 2
+
+
+def test_capped_alloc_matches_bruteforce():
+    # With modest caps, the sparse (k3,k6) DP must still match brute force
+    # wherever a feasible capped config exists.
+    for n, l3, l6 in ((6, 0.5, 0.5), (8, 0.25, 0.5), (8, 0.0, 0.25)):
+        alloc = _make_capped_alloc(n=n, low3_frac=l3, low6_frac=l6)
+        for target in (3.5, 5.0, 8.0, 12.0):
+            cand = alloc.allocate(target)
+            bf_v, bf_cfg, n_opt = _bruteforce(alloc, target)
+            if bf_cfg is None:  # budget unattainable within caps
+                assert cand["n_3bit"] <= alloc.max_low3
+                assert (cand["n_3bit"] + cand["n_4bit"] + cand["n_6bit"]) <= alloc.max_low6
+                continue
+            assert abs(cand["value"] - bf_v) < 1e-9
+            # uniqueness check mirrors test_allocate_matches_bruteforce
+            if n_opt == 1:
+                assert cand["config"] == bf_cfg
+
+
+def test_allocate_cannot_reach_aggressive_budget_within_caps():
+    # With max_low6 = 2, a 3.0 bpw target is unattainable; the allocator should
+    # return the best feasible config without violating the caps rather than
+    # erroring out.
+    alloc = _make_capped_alloc(n=8, low3_frac=0.0, low6_frac=0.25)
+    cand = alloc.allocate(3.0)
+    assert (cand["n_4bit"] + cand["n_6bit"]) <= alloc.max_low6
+    assert not any(x < 0 for x in (cand["n_3bit"], cand["n_4bit"], cand["n_6bit"],
+                                    cand["n_8bit"], cand["n_16bit"]))
 
 
 def test_outlier_share_increases_budget_usage():

@@ -1,1153 +1,429 @@
 {
   "model_name": "Qwen/Qwen2.5-0.5B",
-  "baseline_accuracy": 0.411075207248151,
-  "baseline_size_bytes": 149094400.0,
-  "accuracy_floor": 0.2055376036240755,
-  "optimal_config": {
-    "pct_4bit": 0,
-    "pct_8bit": 100,
-    "n_4bit": 0,
-    "n_8bit_only": 5,
-    "n_bf16": 0,
-    "layer_configs": {
-      "20": "8bit",
-      "16": "8bit",
-      "8": "8bit",
-      "12": "8bit",
-      "4": "8bit"
-    },
-    "accuracy": 0.4146765863007085,
-    "estimated_size_bytes": 134184960.0,
-    "size_reduction_pct": 9.999999999999998,
-    "accuracy_drop_pct": -0.8760876328850253,
-    "efficiency": 999.9999999999998
+  "granularity": "subcomponent",
+  "signals": [
+    "sled",
+    "entropy"
+  ],
+  "criticality": {
+    "0.attn": 0.440759,
+    "0.mlp": 0.441204,
+    "1.attn": 0.441261,
+    "1.mlp": 0.441298,
+    "10.attn": 0.442112,
+    "10.mlp": 0.441953,
+    "11.attn": 0.441972,
+    "11.mlp": 0.441797,
+    "12.attn": 0.441705,
+    "12.mlp": 0.441865,
+    "13.attn": 0.442073,
+    "13.mlp": 0.442102,
+    "14.attn": 0.442308,
+    "14.mlp": 0.442264,
+    "15.attn": 0.442903,
+    "15.mlp": 0.442972,
+    "16.attn": 0.443016,
+    "16.mlp": 0.445196,
+    "17.attn": 0.446983,
+    "17.mlp": 0.448329,
+    "18.attn": 0.447308,
+    "18.mlp": 0.449674,
+    "19.attn": 0.447161,
+    "19.mlp": 0.451529,
+    "2.attn": 0.441328,
+    "2.mlp": 0.4412,
+    "20.attn": 0.459323,
+    "20.mlp": 0.47677,
+    "21.attn": 0.476951,
+    "21.mlp": 0.49227,
+    "22.attn": 0.466634,
+    "22.mlp": 0.472689,
+    "23.attn": 0.531022,
+    "23.mlp": 0.999937,
+    "3.attn": 0.441444,
+    "3.mlp": 0.441251,
+    "4.attn": 0.441199,
+    "4.mlp": 0.441329,
+    "5.attn": 0.441486,
+    "5.mlp": 0.44132,
+    "6.attn": 0.442172,
+    "6.mlp": 0.441617,
+    "7.attn": 0.441768,
+    "7.mlp": 0.441518,
+    "8.attn": 0.44188,
+    "8.mlp": 0.441822,
+    "9.attn": 0.441728,
+    "9.mlp": 0.441761
   },
-  "all_candidates": [
+  "baseline_accuracy": 0.47920395455622183,
+  "baseline_size_bytes": 715653120.0,
+  "outlier_share": 0.0007833962912087911,
+  "outlier_channels_file": "results\\Qwen_Qwen2.5-0.5B\\gsm8k\\outlier_channels.json",
+  "target_bits_per_param": 8.0,
+  "accuracy_floor": 0.23960197727811092,
+  "optimal_config": {
+    "accuracy": 0.4776981118027049,
+    "baseline_accuracy": 0.47920395455622183,
+    "bits_per_param": 7.8832866652578195,
+    "size_reduction_pct": 50.72945834213862,
+    "accuracy_drop_pct": 0.31423838204996946,
+    "efficiency": 161.4362256169959,
+    "n_2bit": 0,
+    "n_3bit": 0,
+    "n_4bit": 0,
+    "n_6bit": 12,
+    "n_8bit": 36,
+    "n_16bit": 0,
+    "component_configs": {
+      "0.attn": "8bit",
+      "0.mlp": "8bit",
+      "1.attn": "8bit",
+      "1.mlp": "8bit",
+      "10.attn": "6bit",
+      "10.mlp": "8bit",
+      "11.attn": "8bit",
+      "11.mlp": "8bit",
+      "12.attn": "8bit",
+      "12.mlp": "8bit",
+      "13.attn": "6bit",
+      "13.mlp": "8bit",
+      "14.attn": "6bit",
+      "14.mlp": "8bit",
+      "15.attn": "6bit",
+      "15.mlp": "8bit",
+      "16.attn": "6bit",
+      "16.mlp": "8bit",
+      "17.attn": "6bit",
+      "17.mlp": "8bit",
+      "18.attn": "6bit",
+      "18.mlp": "8bit",
+      "19.attn": "6bit",
+      "19.mlp": "8bit",
+      "2.attn": "8bit",
+      "2.mlp": "8bit",
+      "20.attn": "6bit",
+      "20.mlp": "8bit",
+      "21.attn": "6bit",
+      "21.mlp": "8bit",
+      "22.attn": "6bit",
+      "22.mlp": "8bit",
+      "23.attn": "8bit",
+      "23.mlp": "8bit",
+      "3.attn": "8bit",
+      "3.mlp": "8bit",
+      "4.attn": "8bit",
+      "4.mlp": "8bit",
+      "5.attn": "8bit",
+      "5.mlp": "8bit",
+      "6.attn": "6bit",
+      "6.mlp": "8bit",
+      "7.attn": "8bit",
+      "7.mlp": "8bit",
+      "8.attn": "8bit",
+      "8.mlp": "8bit",
+      "9.attn": "8bit",
+      "9.mlp": "8bit"
+    },
+    "layer_configs": {
+      "0": "8bit",
+      "1": "8bit",
+      "10": "6bit",
+      "11": "8bit",
+      "12": "8bit",
+      "13": "6bit",
+      "14": "6bit",
+      "15": "6bit",
+      "16": "6bit",
+      "17": "6bit",
+      "18": "6bit",
+      "19": "6bit",
+      "2": "8bit",
+      "20": "6bit",
+      "21": "6bit",
+      "22": "6bit",
+      "23": "8bit",
+      "3": "8bit",
+      "4": "8bit",
+      "5": "8bit",
+      "6": "6bit",
+      "7": "8bit",
+      "8": "8bit",
+      "9": "8bit"
+    }
+  },
+  "frontier": [
     {
-      "pct_4bit": 0,
-      "pct_8bit": 0,
+      "bits_per_param": 7.8832866652578195,
+      "size_reduction_pct": 50.72945834213862,
+      "accuracy": 0.4776981118027049,
+      "accuracy_drop_pct": 0.31423838204996946,
+      "efficiency": 161.4362256169959,
+      "n_2bit": 0,
+      "n_3bit": 0,
       "n_4bit": 0,
-      "n_8bit_only": 0,
-      "n_bf16": 5,
-      "layer_configs": {},
-      "accuracy": 0.411075207248151,
-      "estimated_size_bytes": 149094400.0,
+      "n_6bit": 12,
+      "n_8bit": 36,
+      "n_16bit": 0
+    },
+    {
+      "bits_per_param": 6.499755983199494,
+      "size_reduction_pct": 59.37652510500316,
+      "accuracy": 0.40824429170295,
+      "accuracy_drop_pct": 14.807820799180526,
+      "efficiency": 4.009808459343937,
+      "n_2bit": 0,
+      "n_3bit": 0,
+      "n_4bit": 12,
+      "n_6bit": 0,
+      "n_8bit": 30,
+      "n_16bit": 6
+    },
+    {
+      "bits_per_param": 6.991678003486899,
+      "size_reduction_pct": 56.302012478206876,
+      "accuracy": 0.4085197616249153,
+      "accuracy_drop_pct": 14.750335897533496,
+      "efficiency": 3.8169986683233104,
+      "n_2bit": 0,
+      "n_3bit": 0,
+      "n_4bit": 12,
+      "n_6bit": 0,
+      "n_8bit": 18,
+      "n_16bit": 18
+    },
+    {
+      "bits_per_param": 7.488724211485631,
+      "size_reduction_pct": 53.195473678214796,
+      "accuracy": 0.43557726357253473,
+      "accuracy_drop_pct": 9.10399227069998,
+      "efficiency": 5.843093018588948,
+      "n_2bit": 0,
+      "n_3bit": 0,
+      "n_4bit": 8,
+      "n_6bit": 4,
+      "n_8bit": 13,
+      "n_16bit": 23
+    },
+    {
+      "bits_per_param": 7.999861935690511,
+      "size_reduction_pct": 50.000862901934305,
+      "accuracy": 0.4438712235134798,
+      "accuracy_drop_pct": 7.373213577810045,
+      "efficiency": 6.781420662004654,
+      "n_2bit": 0,
+      "n_3bit": 0,
+      "n_4bit": 1,
+      "n_6bit": 11,
+      "n_8bit": 13,
+      "n_16bit": 23
+    },
+    {
+      "bits_per_param": 8.478973486699598,
+      "size_reduction_pct": 47.00641570812751,
+      "accuracy": 0.46515754196941095,
+      "accuracy_drop_pct": 2.931197135010899,
+      "efficiency": 16.036593085695934,
+      "n_2bit": 0,
+      "n_3bit": 0,
+      "n_4bit": 0,
+      "n_6bit": 11,
+      "n_8bit": 12,
+      "n_16bit": 25
+    },
+    {
+      "bits_per_param": 8.990111210904477,
+      "size_reduction_pct": 43.81180493184702,
+      "accuracy": 0.46948409573413485,
+      "accuracy_drop_pct": 2.0283344345704113,
+      "efficiency": 21.59989210118897,
+      "n_2bit": 0,
+      "n_3bit": 0,
+      "n_4bit": 0,
+      "n_6bit": 4,
+      "n_8bit": 19,
+      "n_16bit": 25
+    },
+    {
+      "bits_per_param": 9.501248935109357,
+      "size_reduction_pct": 40.617194155566516,
+      "accuracy": 0.4813250015481561,
+      "accuracy_drop_pct": -0.4426188414698107,
+      "efficiency": 4061.7194155566517,
+      "n_2bit": 0,
+      "n_3bit": 0,
+      "n_4bit": 0,
+      "n_6bit": 1,
+      "n_8bit": 21,
+      "n_16bit": 26
+    },
+    {
+      "bits_per_param": 9.866347309541416,
+      "size_reduction_pct": 38.33532931536615,
+      "accuracy": 0.48034061593425054,
+      "accuracy_drop_pct": -0.23719782927946742,
+      "efficiency": 3833.5329315366153,
+      "n_2bit": 0,
+      "n_3bit": 0,
+      "n_4bit": 0,
+      "n_6bit": 0,
+      "n_8bit": 21,
+      "n_16bit": 27
+    },
+    {
+      "bits_per_param": 10.45050470863271,
+      "size_reduction_pct": 34.68434557104556,
+      "accuracy": 0.48026446590172645,
+      "accuracy_drop_pct": -0.22130688518351427,
+      "efficiency": 3468.434557104556,
+      "n_2bit": 0,
+      "n_3bit": 0,
+      "n_4bit": 0,
+      "n_6bit": 0,
+      "n_8bit": 19,
+      "n_16bit": 29
+    },
+    {
+      "bits_per_param": 10.961642432837591,
+      "size_reduction_pct": 31.489734794765056,
+      "accuracy": 0.4802802777291803,
+      "accuracy_drop_pct": -0.22460648805688876,
+      "efficiency": 3148.9734794765054,
+      "n_2bit": 0,
+      "n_3bit": 0,
+      "n_4bit": 0,
+      "n_6bit": 1,
+      "n_8bit": 16,
+      "n_16bit": 31
+    },
+    {
+      "bits_per_param": 11.32674080726965,
+      "size_reduction_pct": 29.207869954564693,
+      "accuracy": 0.4802066279897254,
+      "accuracy_drop_pct": -0.20923730365125515,
+      "efficiency": 2920.7869954564694,
+      "n_2bit": 0,
+      "n_3bit": 0,
+      "n_4bit": 0,
+      "n_6bit": 0,
+      "n_8bit": 16,
+      "n_16bit": 32
+    },
+    {
+      "bits_per_param": 11.910898206360942,
+      "size_reduction_pct": 25.556886210244112,
+      "accuracy": 0.48033349442856665,
+      "accuracy_drop_pct": -0.23571171765284227,
+      "efficiency": 2555.688621024411,
+      "n_2bit": 0,
+      "n_3bit": 0,
+      "n_4bit": 0,
+      "n_6bit": 0,
+      "n_8bit": 14,
+      "n_16bit": 34
+    },
+    {
+      "bits_per_param": 12.495055605452235,
+      "size_reduction_pct": 21.905902465923532,
+      "accuracy": 0.48017292125961897,
+      "accuracy_drop_pct": -0.20220340299454964,
+      "efficiency": 2190.590246592353,
+      "n_2bit": 0,
+      "n_3bit": 0,
+      "n_4bit": 0,
+      "n_6bit": 0,
+      "n_8bit": 12,
+      "n_16bit": 36
+    },
+    {
+      "bits_per_param": 12.787134304997883,
+      "size_reduction_pct": 20.080410593763233,
+      "accuracy": 0.480266873067501,
+      "accuracy_drop_pct": -0.22180921112462393,
+      "efficiency": 2008.0410593763233,
+      "n_2bit": 0,
+      "n_3bit": 0,
+      "n_4bit": 0,
+      "n_6bit": 0,
+      "n_8bit": 11,
+      "n_16bit": 37
+    },
+    {
+      "bits_per_param": 13.371291704089177,
+      "size_reduction_pct": 16.429426849442642,
+      "accuracy": 0.4809036951329152,
+      "accuracy_drop_pct": -0.3547008659950279,
+      "efficiency": 1642.942684944264,
+      "n_2bit": 0,
+      "n_3bit": 0,
+      "n_4bit": 0,
+      "n_6bit": 0,
+      "n_8bit": 9,
+      "n_16bit": 39
+    },
+    {
+      "bits_per_param": 13.955449103180468,
+      "size_reduction_pct": 12.778443105122072,
+      "accuracy": 0.48109369447957745,
+      "accuracy_drop_pct": -0.39434981814907566,
+      "efficiency": 1277.8443105122071,
+      "n_2bit": 0,
+      "n_3bit": 0,
+      "n_4bit": 0,
+      "n_6bit": 0,
+      "n_8bit": 7,
+      "n_16bit": 41
+    },
+    {
+      "bits_per_param": 14.466586827385354,
+      "size_reduction_pct": 9.583832328841535,
+      "accuracy": 0.4824129617626534,
+      "accuracy_drop_pct": -0.6696537405254332,
+      "efficiency": 958.3832328841535,
+      "n_2bit": 0,
+      "n_3bit": 0,
+      "n_4bit": 0,
+      "n_6bit": 1,
+      "n_8bit": 4,
+      "n_16bit": 43
+    },
+    {
+      "bits_per_param": 14.831685201817411,
+      "size_reduction_pct": 7.301967488641181,
+      "accuracy": 0.4800221275946243,
+      "accuracy_drop_pct": -0.1707358694817529,
+      "efficiency": 730.1967488641181,
+      "n_2bit": 0,
+      "n_3bit": 0,
+      "n_4bit": 0,
+      "n_6bit": 0,
+      "n_8bit": 4,
+      "n_16bit": 44
+    },
+    {
+      "bits_per_param": 15.415842600908706,
+      "size_reduction_pct": 3.6509837443205906,
+      "accuracy": 0.4803716026130083,
+      "accuracy_drop_pct": -0.24366411121707898,
+      "efficiency": 365.0983744320591,
+      "n_2bit": 0,
+      "n_3bit": 0,
+      "n_4bit": 0,
+      "n_6bit": 0,
+      "n_8bit": 2,
+      "n_16bit": 46
+    },
+    {
+      "bits_per_param": 16.0,
       "size_reduction_pct": 0.0,
+      "accuracy": 0.47920395455622183,
       "accuracy_drop_pct": 0.0,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 0,
-      "pct_8bit": 10,
+      "efficiency": 0.0,
+      "n_2bit": 0,
+      "n_3bit": 0,
       "n_4bit": 0,
-      "n_8bit_only": 0,
-      "n_bf16": 5,
-      "layer_configs": {},
-      "accuracy": 0.411075207248151,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": 0.0,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 0,
-      "pct_8bit": 20,
-      "n_4bit": 0,
-      "n_8bit_only": 1,
-      "n_bf16": 4,
-      "layer_configs": {
-        "20": "8bit"
-      },
-      "accuracy": 0.4105649370069846,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": 0.12413062918152917,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 0,
-      "pct_8bit": 30,
-      "n_4bit": 0,
-      "n_8bit_only": 1,
-      "n_bf16": 4,
-      "layer_configs": {
-        "20": "8bit"
-      },
-      "accuracy": 0.4105649370069846,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": 0.12413062918152917,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 0,
-      "pct_8bit": 40,
-      "n_4bit": 0,
-      "n_8bit_only": 2,
-      "n_bf16": 3,
-      "layer_configs": {
-        "20": "8bit",
-        "16": "8bit"
-      },
-      "accuracy": 0.4112931268990857,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": -0.05301211240480441,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 0,
-      "pct_8bit": 50,
-      "n_4bit": 0,
-      "n_8bit_only": 2,
-      "n_bf16": 3,
-      "layer_configs": {
-        "20": "8bit",
-        "16": "8bit"
-      },
-      "accuracy": 0.4112931268990857,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": -0.05301211240480441,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 0,
-      "pct_8bit": 60,
-      "n_4bit": 0,
-      "n_8bit_only": 3,
-      "n_bf16": 2,
-      "layer_configs": {
-        "20": "8bit",
-        "16": "8bit",
-        "8": "8bit"
-      },
-      "accuracy": 0.4095090515445467,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": 0.3809900660486365,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 0,
-      "pct_8bit": 70,
-      "n_4bit": 0,
-      "n_8bit_only": 3,
-      "n_bf16": 2,
-      "layer_configs": {
-        "20": "8bit",
-        "16": "8bit",
-        "8": "8bit"
-      },
-      "accuracy": 0.4095090515445467,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": 0.3809900660486365,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 0,
-      "pct_8bit": 80,
-      "n_4bit": 0,
-      "n_8bit_only": 4,
-      "n_bf16": 1,
-      "layer_configs": {
-        "20": "8bit",
-        "16": "8bit",
-        "8": "8bit",
-        "12": "8bit"
-      },
-      "accuracy": 0.4104359211026447,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": 0.15551561715089202,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 0,
-      "pct_8bit": 90,
-      "n_4bit": 0,
-      "n_8bit_only": 4,
-      "n_bf16": 1,
-      "layer_configs": {
-        "20": "8bit",
-        "16": "8bit",
-        "8": "8bit",
-        "12": "8bit"
-      },
-      "accuracy": 0.4104359211026447,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": 0.15551561715089202,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 0,
-      "pct_8bit": 100,
-      "n_4bit": 0,
-      "n_8bit_only": 5,
-      "n_bf16": 0,
-      "layer_configs": {
-        "20": "8bit",
-        "16": "8bit",
-        "8": "8bit",
-        "12": "8bit",
-        "4": "8bit"
-      },
-      "accuracy": 0.4146765863007085,
-      "estimated_size_bytes": 134184960.0,
-      "size_reduction_pct": 9.999999999999998,
-      "accuracy_drop_pct": -0.8760876328850253,
-      "efficiency": 999.9999999999998
-    },
-    {
-      "pct_4bit": 10,
-      "pct_8bit": 10,
-      "n_4bit": 0,
-      "n_8bit_only": 0,
-      "n_bf16": 5,
-      "layer_configs": {},
-      "accuracy": 0.411075207248151,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": 0.0,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 10,
-      "pct_8bit": 20,
-      "n_4bit": 0,
-      "n_8bit_only": 1,
-      "n_bf16": 4,
-      "layer_configs": {
-        "20": "8bit"
-      },
-      "accuracy": 0.4105649370069846,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": 0.12413062918152917,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 10,
-      "pct_8bit": 30,
-      "n_4bit": 0,
-      "n_8bit_only": 1,
-      "n_bf16": 4,
-      "layer_configs": {
-        "20": "8bit"
-      },
-      "accuracy": 0.4105649370069846,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": 0.12413062918152917,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 10,
-      "pct_8bit": 40,
-      "n_4bit": 0,
-      "n_8bit_only": 2,
-      "n_bf16": 3,
-      "layer_configs": {
-        "20": "8bit",
-        "16": "8bit"
-      },
-      "accuracy": 0.4112931268990857,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": -0.05301211240480441,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 10,
-      "pct_8bit": 50,
-      "n_4bit": 0,
-      "n_8bit_only": 2,
-      "n_bf16": 3,
-      "layer_configs": {
-        "20": "8bit",
-        "16": "8bit"
-      },
-      "accuracy": 0.4112931268990857,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": -0.05301211240480441,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 10,
-      "pct_8bit": 60,
-      "n_4bit": 0,
-      "n_8bit_only": 3,
-      "n_bf16": 2,
-      "layer_configs": {
-        "20": "8bit",
-        "16": "8bit",
-        "8": "8bit"
-      },
-      "accuracy": 0.4095090515445467,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": 0.3809900660486365,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 10,
-      "pct_8bit": 70,
-      "n_4bit": 0,
-      "n_8bit_only": 3,
-      "n_bf16": 2,
-      "layer_configs": {
-        "20": "8bit",
-        "16": "8bit",
-        "8": "8bit"
-      },
-      "accuracy": 0.4095090515445467,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": 0.3809900660486365,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 10,
-      "pct_8bit": 80,
-      "n_4bit": 0,
-      "n_8bit_only": 4,
-      "n_bf16": 1,
-      "layer_configs": {
-        "20": "8bit",
-        "16": "8bit",
-        "8": "8bit",
-        "12": "8bit"
-      },
-      "accuracy": 0.4104359211026447,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": 0.15551561715089202,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 10,
-      "pct_8bit": 90,
-      "n_4bit": 0,
-      "n_8bit_only": 4,
-      "n_bf16": 1,
-      "layer_configs": {
-        "20": "8bit",
-        "16": "8bit",
-        "8": "8bit",
-        "12": "8bit"
-      },
-      "accuracy": 0.4104359211026447,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": 0.15551561715089202,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 10,
-      "pct_8bit": 100,
-      "n_4bit": 0,
-      "n_8bit_only": 5,
-      "n_bf16": 0,
-      "layer_configs": {
-        "20": "8bit",
-        "16": "8bit",
-        "8": "8bit",
-        "12": "8bit",
-        "4": "8bit"
-      },
-      "accuracy": 0.4146765863007085,
-      "estimated_size_bytes": 134184960.0,
-      "size_reduction_pct": 9.999999999999998,
-      "accuracy_drop_pct": -0.8760876328850253,
-      "efficiency": 999.9999999999998
-    },
-    {
-      "pct_4bit": 20,
-      "pct_8bit": 20,
-      "n_4bit": 1,
-      "n_8bit_only": 0,
-      "n_bf16": 4,
-      "layer_configs": {
-        "20": "4bit"
-      },
-      "accuracy": 0.41455511681381646,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": -0.8465384202956283,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 20,
-      "pct_8bit": 30,
-      "n_4bit": 1,
-      "n_8bit_only": 0,
-      "n_bf16": 4,
-      "layer_configs": {
-        "20": "4bit"
-      },
-      "accuracy": 0.41455511681381646,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": -0.8465384202956283,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 20,
-      "pct_8bit": 40,
-      "n_4bit": 1,
-      "n_8bit_only": 1,
-      "n_bf16": 3,
-      "layer_configs": {
-        "20": "4bit",
-        "16": "8bit"
-      },
-      "accuracy": 0.413196602877412,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": -0.5160602225228406,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 20,
-      "pct_8bit": 50,
-      "n_4bit": 1,
-      "n_8bit_only": 1,
-      "n_bf16": 3,
-      "layer_configs": {
-        "20": "4bit",
-        "16": "8bit"
-      },
-      "accuracy": 0.413196602877412,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": -0.5160602225228406,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 20,
-      "pct_8bit": 60,
-      "n_4bit": 1,
-      "n_8bit_only": 2,
-      "n_bf16": 2,
-      "layer_configs": {
-        "20": "4bit",
-        "16": "8bit",
-        "8": "8bit"
-      },
-      "accuracy": 0.4130406973504072,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": -0.47813394425164635,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 20,
-      "pct_8bit": 70,
-      "n_4bit": 1,
-      "n_8bit_only": 2,
-      "n_bf16": 2,
-      "layer_configs": {
-        "20": "4bit",
-        "16": "8bit",
-        "8": "8bit"
-      },
-      "accuracy": 0.4130406973504072,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": -0.47813394425164635,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 20,
-      "pct_8bit": 80,
-      "n_4bit": 1,
-      "n_8bit_only": 3,
-      "n_bf16": 1,
-      "layer_configs": {
-        "20": "4bit",
-        "16": "8bit",
-        "8": "8bit",
-        "12": "8bit"
-      },
-      "accuracy": 0.41427067322643873,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": -0.7773433965232446,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 20,
-      "pct_8bit": 90,
-      "n_4bit": 1,
-      "n_8bit_only": 3,
-      "n_bf16": 1,
-      "layer_configs": {
-        "20": "4bit",
-        "16": "8bit",
-        "8": "8bit",
-        "12": "8bit"
-      },
-      "accuracy": 0.41427067322643873,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": -0.7773433965232446,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 20,
-      "pct_8bit": 100,
-      "n_4bit": 1,
-      "n_8bit_only": 4,
-      "n_bf16": 0,
-      "layer_configs": {
-        "20": "4bit",
-        "16": "8bit",
-        "8": "8bit",
-        "12": "8bit",
-        "4": "8bit"
-      },
-      "accuracy": 0.4159884640684411,
-      "estimated_size_bytes": 134184960.0,
-      "size_reduction_pct": 9.999999999999998,
-      "accuracy_drop_pct": -1.1952209069432174,
-      "efficiency": 999.9999999999998
-    },
-    {
-      "pct_4bit": 30,
-      "pct_8bit": 30,
-      "n_4bit": 1,
-      "n_8bit_only": 0,
-      "n_bf16": 4,
-      "layer_configs": {
-        "20": "4bit"
-      },
-      "accuracy": 0.41455511681381646,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": -0.8465384202956283,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 30,
-      "pct_8bit": 40,
-      "n_4bit": 1,
-      "n_8bit_only": 1,
-      "n_bf16": 3,
-      "layer_configs": {
-        "20": "4bit",
-        "16": "8bit"
-      },
-      "accuracy": 0.413196602877412,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": -0.5160602225228406,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 30,
-      "pct_8bit": 50,
-      "n_4bit": 1,
-      "n_8bit_only": 1,
-      "n_bf16": 3,
-      "layer_configs": {
-        "20": "4bit",
-        "16": "8bit"
-      },
-      "accuracy": 0.413196602877412,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": -0.5160602225228406,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 30,
-      "pct_8bit": 60,
-      "n_4bit": 1,
-      "n_8bit_only": 2,
-      "n_bf16": 2,
-      "layer_configs": {
-        "20": "4bit",
-        "16": "8bit",
-        "8": "8bit"
-      },
-      "accuracy": 0.4130406973504072,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": -0.47813394425164635,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 30,
-      "pct_8bit": 70,
-      "n_4bit": 1,
-      "n_8bit_only": 2,
-      "n_bf16": 2,
-      "layer_configs": {
-        "20": "4bit",
-        "16": "8bit",
-        "8": "8bit"
-      },
-      "accuracy": 0.4130406973504072,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": -0.47813394425164635,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 30,
-      "pct_8bit": 80,
-      "n_4bit": 1,
-      "n_8bit_only": 3,
-      "n_bf16": 1,
-      "layer_configs": {
-        "20": "4bit",
-        "16": "8bit",
-        "8": "8bit",
-        "12": "8bit"
-      },
-      "accuracy": 0.41427067322643873,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": -0.7773433965232446,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 30,
-      "pct_8bit": 90,
-      "n_4bit": 1,
-      "n_8bit_only": 3,
-      "n_bf16": 1,
-      "layer_configs": {
-        "20": "4bit",
-        "16": "8bit",
-        "8": "8bit",
-        "12": "8bit"
-      },
-      "accuracy": 0.41427067322643873,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": -0.7773433965232446,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 30,
-      "pct_8bit": 100,
-      "n_4bit": 1,
-      "n_8bit_only": 4,
-      "n_bf16": 0,
-      "layer_configs": {
-        "20": "4bit",
-        "16": "8bit",
-        "8": "8bit",
-        "12": "8bit",
-        "4": "8bit"
-      },
-      "accuracy": 0.4159884640684411,
-      "estimated_size_bytes": 134184960.0,
-      "size_reduction_pct": 9.999999999999998,
-      "accuracy_drop_pct": -1.1952209069432174,
-      "efficiency": 999.9999999999998
-    },
-    {
-      "pct_4bit": 40,
-      "pct_8bit": 40,
-      "n_4bit": 2,
-      "n_8bit_only": 0,
-      "n_bf16": 3,
-      "layer_configs": {
-        "20": "4bit",
-        "16": "4bit"
-      },
-      "accuracy": 0.399403214900256,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": 2.839381247541173,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 40,
-      "pct_8bit": 50,
-      "n_4bit": 2,
-      "n_8bit_only": 0,
-      "n_bf16": 3,
-      "layer_configs": {
-        "20": "4bit",
-        "16": "4bit"
-      },
-      "accuracy": 0.399403214900256,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": 2.839381247541173,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 40,
-      "pct_8bit": 60,
-      "n_4bit": 2,
-      "n_8bit_only": 1,
-      "n_bf16": 2,
-      "layer_configs": {
-        "20": "4bit",
-        "16": "4bit",
-        "8": "8bit"
-      },
-      "accuracy": 0.40064088914450885,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": 2.5382990556624185,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 40,
-      "pct_8bit": 70,
-      "n_4bit": 2,
-      "n_8bit_only": 1,
-      "n_bf16": 2,
-      "layer_configs": {
-        "20": "4bit",
-        "16": "4bit",
-        "8": "8bit"
-      },
-      "accuracy": 0.40064088914450885,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": 2.5382990556624185,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 40,
-      "pct_8bit": 80,
-      "n_4bit": 2,
-      "n_8bit_only": 2,
-      "n_bf16": 1,
-      "layer_configs": {
-        "20": "4bit",
-        "16": "4bit",
-        "8": "8bit",
-        "12": "8bit"
-      },
-      "accuracy": 0.3991533485058184,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": 2.9001648681614145,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 40,
-      "pct_8bit": 90,
-      "n_4bit": 2,
-      "n_8bit_only": 2,
-      "n_bf16": 1,
-      "layer_configs": {
-        "20": "4bit",
-        "16": "4bit",
-        "8": "8bit",
-        "12": "8bit"
-      },
-      "accuracy": 0.3991533485058184,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": 2.9001648681614145,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 40,
-      "pct_8bit": 100,
-      "n_4bit": 2,
-      "n_8bit_only": 3,
-      "n_bf16": 0,
-      "layer_configs": {
-        "20": "4bit",
-        "16": "4bit",
-        "8": "8bit",
-        "12": "8bit",
-        "4": "8bit"
-      },
-      "accuracy": 0.40572810724639546,
-      "estimated_size_bytes": 134184960.0,
-      "size_reduction_pct": 9.999999999999998,
-      "accuracy_drop_pct": 1.300759546543917,
-      "efficiency": 7.687815958429618
-    },
-    {
-      "pct_4bit": 50,
-      "pct_8bit": 50,
-      "n_4bit": 2,
-      "n_8bit_only": 0,
-      "n_bf16": 3,
-      "layer_configs": {
-        "20": "4bit",
-        "16": "4bit"
-      },
-      "accuracy": 0.399403214900256,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": 2.839381247541173,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 50,
-      "pct_8bit": 60,
-      "n_4bit": 2,
-      "n_8bit_only": 1,
-      "n_bf16": 2,
-      "layer_configs": {
-        "20": "4bit",
-        "16": "4bit",
-        "8": "8bit"
-      },
-      "accuracy": 0.40064088914450885,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": 2.5382990556624185,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 50,
-      "pct_8bit": 70,
-      "n_4bit": 2,
-      "n_8bit_only": 1,
-      "n_bf16": 2,
-      "layer_configs": {
-        "20": "4bit",
-        "16": "4bit",
-        "8": "8bit"
-      },
-      "accuracy": 0.40064088914450885,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": 2.5382990556624185,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 50,
-      "pct_8bit": 80,
-      "n_4bit": 2,
-      "n_8bit_only": 2,
-      "n_bf16": 1,
-      "layer_configs": {
-        "20": "4bit",
-        "16": "4bit",
-        "8": "8bit",
-        "12": "8bit"
-      },
-      "accuracy": 0.3991533485058184,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": 2.9001648681614145,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 50,
-      "pct_8bit": 90,
-      "n_4bit": 2,
-      "n_8bit_only": 2,
-      "n_bf16": 1,
-      "layer_configs": {
-        "20": "4bit",
-        "16": "4bit",
-        "8": "8bit",
-        "12": "8bit"
-      },
-      "accuracy": 0.3991533485058184,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": 2.9001648681614145,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 50,
-      "pct_8bit": 100,
-      "n_4bit": 2,
-      "n_8bit_only": 3,
-      "n_bf16": 0,
-      "layer_configs": {
-        "20": "4bit",
-        "16": "4bit",
-        "8": "8bit",
-        "12": "8bit",
-        "4": "8bit"
-      },
-      "accuracy": 0.40572810724639546,
-      "estimated_size_bytes": 134184960.0,
-      "size_reduction_pct": 9.999999999999998,
-      "accuracy_drop_pct": 1.300759546543917,
-      "efficiency": 7.687815958429618
-    },
-    {
-      "pct_4bit": 60,
-      "pct_8bit": 60,
-      "n_4bit": 3,
-      "n_8bit_only": 0,
-      "n_bf16": 2,
-      "layer_configs": {
-        "20": "4bit",
-        "16": "4bit",
-        "8": "4bit"
-      },
-      "accuracy": 0.4007510653859709,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": 2.5114970886453425,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 60,
-      "pct_8bit": 70,
-      "n_4bit": 3,
-      "n_8bit_only": 0,
-      "n_bf16": 2,
-      "layer_configs": {
-        "20": "4bit",
-        "16": "4bit",
-        "8": "4bit"
-      },
-      "accuracy": 0.4007510653859709,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": 2.5114970886453425,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 60,
-      "pct_8bit": 80,
-      "n_4bit": 3,
-      "n_8bit_only": 1,
-      "n_bf16": 1,
-      "layer_configs": {
-        "20": "4bit",
-        "16": "4bit",
-        "8": "4bit",
-        "12": "8bit"
-      },
-      "accuracy": 0.40129263263731635,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": 2.3797530082930174,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 60,
-      "pct_8bit": 90,
-      "n_4bit": 3,
-      "n_8bit_only": 1,
-      "n_bf16": 1,
-      "layer_configs": {
-        "20": "4bit",
-        "16": "4bit",
-        "8": "4bit",
-        "12": "8bit"
-      },
-      "accuracy": 0.40129263263731635,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": 2.3797530082930174,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 60,
-      "pct_8bit": 100,
-      "n_4bit": 3,
-      "n_8bit_only": 2,
-      "n_bf16": 0,
-      "layer_configs": {
-        "20": "4bit",
-        "16": "4bit",
-        "8": "4bit",
-        "12": "8bit",
-        "4": "8bit"
-      },
-      "accuracy": 0.4012010504270373,
-      "estimated_size_bytes": 134184960.0,
-      "size_reduction_pct": 9.999999999999998,
-      "accuracy_drop_pct": 2.402031707826402,
-      "efficiency": 4.163142379602056
-    },
-    {
-      "pct_4bit": 70,
-      "pct_8bit": 70,
-      "n_4bit": 3,
-      "n_8bit_only": 0,
-      "n_bf16": 2,
-      "layer_configs": {
-        "20": "4bit",
-        "16": "4bit",
-        "8": "4bit"
-      },
-      "accuracy": 0.4007510653859709,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": 2.5114970886453425,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 70,
-      "pct_8bit": 80,
-      "n_4bit": 3,
-      "n_8bit_only": 1,
-      "n_bf16": 1,
-      "layer_configs": {
-        "20": "4bit",
-        "16": "4bit",
-        "8": "4bit",
-        "12": "8bit"
-      },
-      "accuracy": 0.40129263263731635,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": 2.3797530082930174,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 70,
-      "pct_8bit": 90,
-      "n_4bit": 3,
-      "n_8bit_only": 1,
-      "n_bf16": 1,
-      "layer_configs": {
-        "20": "4bit",
-        "16": "4bit",
-        "8": "4bit",
-        "12": "8bit"
-      },
-      "accuracy": 0.40129263263731635,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": 2.3797530082930174,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 70,
-      "pct_8bit": 100,
-      "n_4bit": 3,
-      "n_8bit_only": 2,
-      "n_bf16": 0,
-      "layer_configs": {
-        "20": "4bit",
-        "16": "4bit",
-        "8": "4bit",
-        "12": "8bit",
-        "4": "8bit"
-      },
-      "accuracy": 0.4012010504270373,
-      "estimated_size_bytes": 134184960.0,
-      "size_reduction_pct": 9.999999999999998,
-      "accuracy_drop_pct": 2.402031707826402,
-      "efficiency": 4.163142379602056
-    },
-    {
-      "pct_4bit": 80,
-      "pct_8bit": 80,
-      "n_4bit": 4,
-      "n_8bit_only": 0,
-      "n_bf16": 1,
-      "layer_configs": {
-        "20": "4bit",
-        "16": "4bit",
-        "8": "4bit",
-        "12": "4bit"
-      },
-      "accuracy": 0.4056769459074498,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": 1.3132052834902486,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 80,
-      "pct_8bit": 90,
-      "n_4bit": 4,
-      "n_8bit_only": 0,
-      "n_bf16": 1,
-      "layer_configs": {
-        "20": "4bit",
-        "16": "4bit",
-        "8": "4bit",
-        "12": "4bit"
-      },
-      "accuracy": 0.4056769459074498,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": 1.3132052834902486,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 80,
-      "pct_8bit": 100,
-      "n_4bit": 4,
-      "n_8bit_only": 1,
-      "n_bf16": 0,
-      "layer_configs": {
-        "20": "4bit",
-        "16": "4bit",
-        "8": "4bit",
-        "12": "4bit",
-        "4": "8bit"
-      },
-      "accuracy": 0.4055859368946722,
-      "estimated_size_bytes": 134184960.0,
-      "size_reduction_pct": 9.999999999999998,
-      "accuracy_drop_pct": 1.3353445444266643,
-      "efficiency": 7.488703976615668
-    },
-    {
-      "pct_4bit": 90,
-      "pct_8bit": 90,
-      "n_4bit": 4,
-      "n_8bit_only": 0,
-      "n_bf16": 1,
-      "layer_configs": {
-        "20": "4bit",
-        "16": "4bit",
-        "8": "4bit",
-        "12": "4bit"
-      },
-      "accuracy": 0.4056769459074498,
-      "estimated_size_bytes": 149094400.0,
-      "size_reduction_pct": 0.0,
-      "accuracy_drop_pct": 1.3132052834902486,
-      "efficiency": 0.0
-    },
-    {
-      "pct_4bit": 90,
-      "pct_8bit": 100,
-      "n_4bit": 4,
-      "n_8bit_only": 1,
-      "n_bf16": 0,
-      "layer_configs": {
-        "20": "4bit",
-        "16": "4bit",
-        "8": "4bit",
-        "12": "4bit",
-        "4": "8bit"
-      },
-      "accuracy": 0.4055859368946722,
-      "estimated_size_bytes": 134184960.0,
-      "size_reduction_pct": 9.999999999999998,
-      "accuracy_drop_pct": 1.3353445444266643,
-      "efficiency": 7.488703976615668
-    },
-    {
-      "pct_4bit": 100,
-      "pct_8bit": 100,
-      "n_4bit": 5,
-      "n_8bit_only": 0,
-      "n_bf16": 0,
-      "layer_configs": {
-        "20": "4bit",
-        "16": "4bit",
-        "8": "4bit",
-        "12": "4bit",
-        "4": "4bit"
-      },
-      "accuracy": 0.410914752975759,
-      "estimated_size_bytes": 123002880.0,
-      "size_reduction_pct": 17.500000000000004,
-      "accuracy_drop_pct": 0.039032826490825734,
-      "efficiency": 448.34057825951186
+      "n_6bit": 0,
+      "n_8bit": 0,
+      "n_16bit": 48
     }
   ]
 }

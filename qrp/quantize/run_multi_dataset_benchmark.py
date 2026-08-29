@@ -313,7 +313,16 @@ def main():
         opt_data = json.load(f)
 
     optimal          = opt_data["optimal_config"]
-    opt_layer_configs = {int(k): v for k, v in optimal["layer_configs"].items()}
+    if "component_configs" in optimal:
+        opt_layer_configs = None
+        opt_comp_configs  = optimal["component_configs"]
+        opt_bpw           = optimal.get("bits_per_param", 8.0)
+        base_bytes        = opt_data.get("baseline_size_bytes")
+    else:
+        opt_layer_configs = {int(k): v for k, v in optimal["layer_configs"].items()}
+        opt_comp_configs  = None
+        opt_bpw           = None
+        base_bytes        = None
     short_name  = args.model_name.split("/")[-1]   
     model_label_base = short_name                   
     model_label_opt  = f"+LLM-QRP (quantized)"
@@ -323,8 +332,14 @@ def main():
     print(f"  Model:    {args.model_name}")
     print(f"  Datasets: {', '.join(dataset_keys)}")
     print(f"  Samples:  {args.samples} per dataset")
-    opt_desc = (f"{optimal['n_4bit']} × FP4  |  {optimal['n_8bit_only']} × INT8  |  "
-                f"{optimal.get('n_bf16', '?')} × BF16")
+    if opt_comp_configs is not None:
+        opt_desc = (f"{optimal.get('n_4bit', 0)} x FP4  |  "
+                    f"{optimal.get('n_6bit', 0)} x 6bit  |  "
+                    f"{optimal.get('n_8bit', 0)} x INT8  |  "
+                    f"{optimal.get('n_16bit', 0)} x BF16")
+    else:
+        opt_desc = (f"{optimal['n_4bit']} x FP4  |  {optimal['n_8bit_only']} x INT8  |  "
+                    f"{optimal.get('n_bf16', '?')} x BF16")
     print(f"  Optimal:  {opt_desc}")
     if args.with_gptq:
         print(f"  GPTQ:     uniform {args.gptq_bits}-bit external baseline")
@@ -344,9 +359,25 @@ def main():
     quantizer  = TargetedQuantizer(args.model_name)
     num_layers = quantizer.num_layers
 
+    outlier_channels = {}
+    if opt_comp_configs is not None:
+        oc_candidates = [
+            os.path.join(model_safe, "gsm8k", "outlier_channels.json"),
+            os.path.join(base_dir, "gsm8k", "outlier_channels.json"),
+        ]
+        oc_path = next((p for p in oc_candidates if os.path.exists(p)), None)
+        if oc_path:
+            with open(oc_path) as f:
+                outlier_channels = json.load(f).get("outlier_channels", {})
+            print(f"Loaded {len(outlier_channels)} outlier-protected components from {oc_path}")
+
     baseline_size_mb = estimate_size(quantizer.model, {}, num_layers) / 1e6
-    opt_size_mb      = estimate_size(quantizer.model, opt_layer_configs, num_layers) / 1e6
-    compression      = baseline_size_mb / opt_size_mb
+    if opt_comp_configs is not None:
+        base_mb = (base_bytes or (baseline_size_mb * 1e6)) / 1e6
+        opt_size_mb = base_mb * (opt_bpw / 16.0)
+    else:
+        opt_size_mb = estimate_size(quantizer.model, opt_layer_configs, num_layers) / 1e6
+    compression = baseline_size_mb / opt_size_mb
     size_reduction_pct = (1 - opt_size_mb / baseline_size_mb) * 100
 
     uniform_int8_configs = {i: "8bit" for i in range(num_layers)}
@@ -366,10 +397,10 @@ def main():
     dataset_displays = [DATASET_REGISTRY[k]["display"] for k in dataset_keys]
 
     base_conditions = [
-        ("bf16",  "BF16 baseline",            None),
-        ("int8",  "Uniform INT8 baseline",    uniform_int8_configs),
-        ("int4",  "Uniform INT4 baseline",    uniform_int4_configs),
-        ("mixed", "Optimal mixed-precision",  opt_layer_configs),
+        ("bf16",  "BF16 baseline",            None, None),
+        ("int8",  "Uniform INT8 baseline",    uniform_int8_configs, None),
+        ("int4",  "Uniform INT4 baseline",    uniform_int4_configs, None),
+        ("mixed", "Optimal mixed-precision",  opt_layer_configs, opt_comp_configs),
     ]
 
     external_baselines = []
@@ -559,10 +590,12 @@ def main():
         pairs = load_eval_pairs(ds_key, args.samples)
         ds_pairs[ds_key] = pairs
 
-        for i, (key, desc, configs) in enumerate(base_conditions, 1):
+        for i, (key, desc, configs, comp_configs) in enumerate(base_conditions, 1):
             print(f"  [{i}/{len(base_conditions)}] {desc}...")
-            if configs is None:
+            if configs is None and comp_configs is None:
                 quantizer.restore()
+            elif comp_configs is not None:
+                quantizer.quantize_components(comp_configs, outlier_channels=outlier_channels)
             else:
                 quantizer.quantize_layers(configs)
             acc, vram = evaluate_dataset(

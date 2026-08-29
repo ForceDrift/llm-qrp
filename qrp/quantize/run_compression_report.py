@@ -139,7 +139,7 @@ def main():
     print(f"  Accuracy Retained:  {(1 - opt_acc_drop / 100) * 100:.1f}%")
     print(f"  Accuracy Drop:      {opt_acc_drop:.22f}%")
     print(f"  Efficiency Score:   {optimal['efficiency']:.2f}")
-    print(f"  Layer config:       {n4} × FP4  |  {n8} × INT8  |  {n_bf} × BF16")
+    print(f"  Layer config:       {n4} x FP4  |  {n8} x INT8  |  {n_bf} x BF16")
 
     _generate_chart(rows, baseline_acc, baseline_size, args.model_name, quantize_dir)
 

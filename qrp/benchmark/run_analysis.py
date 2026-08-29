@@ -686,7 +686,9 @@ if __name__ == "__main__":
 
             for name in signals:
 
-                components.update({k: v for k, v in signal_values[name].items()})
+                for cid_v, val in signal_values[name].items():
+
+                    components.setdefault(cid_v, {})[name] = val
 
             results.append({"id": idx, "prompt": sample.get("question"), "components": components})
 

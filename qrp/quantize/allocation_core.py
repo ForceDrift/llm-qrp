@@ -12,12 +12,45 @@ import math
 
 import numpy as np
 
-# Candidate bit-widths per sub-component (b_{l,c} in {2, 3, 4, 8, 16}).
-BITS = (2, 3, 4, 8, 16)
-BYTES_PER_PARAM = {2: 0.25, 3: 0.375, 4: 0.5, 8: 1.0, 16: 2.0}
+# Candidate bit-widths per sub-component (b_{l,c} in {3, 4, 6, 8, 16}).
+#
+# A 2-bit width is intentionally excluded and 6-bit inserted as an intermediate
+# precision step.  Experimental profiling on tiny (<1B) models shows that the
+# first transformer layer (the "outlier layer" right after the embedding) cannot
+# be represented in 2-bit uniform quantization and that *bulk* 3-bit still
+# compounds destructively through depth (e.g. layer-0 down_proj: 2-bit -> 0.03
+# vs 3-bit -> 0.19; a whole-config 3-bit drop from 0.19 -> 0.01).  Keeping
+# {3, 4, 6, 8, 16} preserves an aggressive but non-fatal floor while 6-bit gives
+# the knock-away a finer ladder between 4- and 8-bit so the optimum need not
+# snap straight from 4-bit to 8-bit.
+BITS = (3, 4, 6, 8, 16)
+BYTES_PER_PARAM = {3: 0.375, 4: 0.5, 6: 0.75, 8: 1.0, 16: 2.0}
 # Fraction of channels protected to BF16 by Salient Outlier Channel Protection
 # (top-0.1% highest-activation weight channels stay unquantized).
 DEFAULT_OUTLIER_SHARE = 0.001
+
+# Critical-component shielding (Section 3.5).  Small models have "anchor"
+# sub-components -- typically early LayerNorms, V-projections and final MLP
+# gate projections -- whose premature low-bit quantization acts as a single
+# point of failure and collapses the model.  Any sub-component whose unified
+# criticality R_{l,c} meets this threshold is hard-constrained to at least
+# CRITICAL_MIN_BITS precision, regardless of how much the bit budget would
+# prefer to compress it.
+CRITICAL_R_THRESHOLD = 0.75
+CRITICAL_MIN_BITS = 8
+# Fraction of the top-criticality components that must be shielded (defensive
+# guard so the threshold cannot degenerate to an empty set on skewed signals).
+CRITICAL_MIN_SHARE = 0.05
+
+# Bulk sub-8-bit caps ("alloy" constraints).  Small models tolerate *isolated*
+# 4/6/8-bit components but collapse when a whole-slab of sub-8-bit components is
+# laid down (e.g. a 20x6-bit + 3x3-bit config at ~2x compression craters while
+# the old 8-bit-everywhere config at the same density is near-lossless).  These
+# caps bound the number of components allowed at the two destructive low bands:
+#   3-bit (fatal for granite) and <=6-bit (compounding through depth).  They are
+# expressed as *fractions of the component count* so they scale to model size.
+LOW3_MAX_FRAC = 0.08
+LOW6_MAX_FRAC = 0.25
 
 
 # --------------------------------------------------------------------------- #
@@ -106,14 +139,18 @@ def fidelity(b: int, delta_h_hat: float) -> float:
     its precision is degraded:
 
         f(16) = 1
-        f(b)  = max(0, 1 - DeltaH_hat * ((16-b)/12)^2)   for b <= 8
+        f(b)  = max(0, 1 - DeltaH_hat * ((16-b)/12)^3)   for b <= 8
 
-    A strong bottleneck (high ``DeltaH_hat``) loses value faster under
-    low-bit precision; the quadratic falloff is convex in the bit reduction.
+    The cubic exponent is calibrated to measurements on tiny (<1B) models:
+    a lone 3/4/8-bit component is near-fine, but bulk sub-8-bit (especially
+    3-bit) collapses the model through depth.  The cubic curvature prices the
+    destructive 3-bit band sharply below 4-bit while keeping 6/8-bit close to
+    lossless, and it stays convex in the bit reduction so an aggressive budget
+    cannot legally paper over a row of very-low-bit components.
     """
     if b >= 16:
         return 1.0
-    psi = ((16.0 - b) / 12.0) ** 2.0
+    psi = ((16.0 - b) / 12.0) ** 3.0
     return max(0.0, 1.0 - delta_h_hat * psi)
 
 
@@ -130,7 +167,7 @@ class MpcAllocator:
         s.t.        1/P_total * sum_{l,c,b} x_{l,c,b} . P_{l,c} . b <= B_target,
                     sum_b x_{l,c,b} = 1,   x_{l,c,b} in {0, 1},
 
-    i.e. exactly one bit-width ``b in {2, 3, 4, 8, 16}`` is selected per
+    i.e. exactly one bit-width ``b in {3, 4, 8, 16}`` is selected per
     sub-component.  Subject to the memory budget, an *importantly* weak
     constraint (see ``allocate``), the solver returns the globally optimal
     assignment; the step-wise percentile grid search is removed.
@@ -143,7 +180,12 @@ class MpcAllocator:
     def __init__(self, criticality: dict[str, float], params: dict[str, int],
                  delta_h_hat: dict[str, float],
                  outlier_share: float = DEFAULT_OUTLIER_SHARE,
-                 max_capacity_units: int = 100_000):
+                 max_capacity_units: int = 100_000,
+                 critical_r_threshold: float = CRITICAL_R_THRESHOLD,
+                 critical_min_bits: int = CRITICAL_MIN_BITS,
+                 critical_min_share: float = CRITICAL_MIN_SHARE,
+                 low3_max_frac: float = LOW3_MAX_FRAC,
+                 low6_max_frac: float = LOW6_MAX_FRAC):
         """Args:
             criticality: ``R_{l,c}`` in (0, 1) from ``pca_criticality``.
             params:      per-component parameter counts.
@@ -152,6 +194,15 @@ class MpcAllocator:
             outlier_share: protected BF16 channel fraction (default 0.1%).
             max_capacity_units: bound on the DP capacity axis (memory/accuracy
                          trade-off of the weight-space resolution).
+            critical_r_threshold: unified criticality at/above which a component
+                         is shielded from aggressive quantization.
+            critical_min_bits: minimum bit-width for shielded components.
+            critical_min_share: defensive fraction of the very highest-criticality
+                         components always shielded even when no component clears
+                         ``critical_r_threshold``.
+            low3_max_frac: max fraction of components allowed at 3-bit.
+            low6_max_frac: max fraction of components allowed at <=6-bit
+                         (bulk sub-8-bit "alloy" caps).
         """
         self.ids = sorted(criticality)
         self.n = len(self.ids)
@@ -161,8 +212,34 @@ class MpcAllocator:
         self.dih = np.array([delta_h_hat.get(i, 1.0) for i in self.ids], dtype=float)
         self.outlier_share = float(outlier_share)
         self.max_capacity_units = int(max_capacity_units)
+        self.critical_r_threshold = float(critical_r_threshold)
+        self.critical_min_bits = int(critical_min_bits)
+        self.critical_min_share = float(critical_min_share)
+        self.max_low3 = int(math.ceil(float(low3_max_frac) * self.n))
+        self.max_low6 = int(math.ceil(float(low6_max_frac) * self.n))
         self.p_total = float(self.P.sum())
         self.bits = tuple(BITS)
+        self._critical_mask = self._compute_critical_mask()
+
+    def _compute_critical_mask(self) -> np.ndarray:
+        """Boolean mask of components that must be shielded to high precision.
+
+        A component is shielded if its unified criticality ``R_{l,c}`` meets the
+        ``CRITICAL_R_THRESHOLD``.  A defensive ``CRITICAL_MIN_SHARE`` guard
+        additionally shields the very highest-criticality components even when
+        the raw threshold would yield an empty (or negligible) shield set, so
+        the constraint can never silently degenerate away on skewed signals.
+        """
+        mask = self.R >= self.critical_r_threshold
+        k_min = int(math.ceil(self.critical_min_share * self.n))
+        if int(mask.sum()) < k_min:
+            order = np.argsort(-self.R)
+            mask[order[:k_min]] = True
+        return mask
+
+    @property
+    def n_critical(self) -> int:
+        return int(self._critical_mask.sum())
 
     # -- item values / weights -------------------------------------------- #
     def _value(self, i: int, b: int) -> float:
@@ -175,72 +252,192 @@ class MpcAllocator:
     def _weight(self, i: int, b: int) -> float:
         return float(self.P[i] * self._effective_bits(b))
 
+    def _min_feasible_config(self) -> tuple[dict[str, str], float]:
+        """Minimum-weight caps-feasible configuration.
+
+        Assigned when the target budget is below what the bulk caps allow: put
+        as many components as the caps permit at 3-bit, then 6-bit, then
+        (critical floor / 8-bit).  Returns ``(config, value)``.
+        """
+        not_crit = [i for i in range(self.n) if not self._critical_mask[i]]
+        # Prefer 3-bit (cheapest allowed) for the smallest components.
+        order3 = sorted(not_crit, key=lambda i: (self.P[i], -self.R[i]))[: self.max_low3]
+        remain = [i for i in not_crit if i not in order3]
+        order6 = sorted(remain, key=lambda i: (self.P[i], -self.R[i]))[: max(0, self.max_low6 - len(order3))]
+        cfg: dict[str, str] = {}
+        value = 0.0
+        count6_allowed = self.max_low6
+        used3 = 0
+        used6 = 0
+        for i in range(self.n):
+            if self._critical_mask[i]:
+                b = self.critical_min_bits
+            elif i in order3 and used3 < self.max_low3 and used6 < count6_allowed:
+                b = 3
+                used3 += 1
+                used6 += 1
+            elif i in order6 and used6 < count6_allowed:
+                b = 6
+                used6 += 1
+            else:
+                b = 8
+            cfg[self.ids[i]] = f"{b}bit"
+            value += self._value(i, b)
+        return cfg, float(value)
+
     # -- DP solver -------------------------------------------------------- #
     def allocate(self, target_bits_per_param: float) -> dict:
         """Solve the 0-1 MCKP for one target average bit budget.
 
-        Exact dynamic programming over the integer weight axis with *scaled*
-        weight units (resolution controlled by ``max_capacity_units``; the
-        problem is solved exactly when the scale is 1).  Ties between
-        equal-value configurations are broken deterministically.
+        Exact dynamic programming over two resource axes with *scaled* weight
+        units (resolution controlled by ``max_capacity_units``; the problem is
+        solved exactly when the scale is 1).  The second and third axes track
+        how many components have been laid down at the two destructive low-bit
+        bands (3-bit and <=6-bit) so the bulk caps ``max_low3`` / ``max_low6``
+        are enforced as hard "alloy" constraints.  Ties between equal-value
+        configurations are broken deterministically.
         """
-        budget = max(float(target_bits_per_param), 2.0)
+        budget = max(float(target_bits_per_param), min(self.bits))
         capacity = budget * self.p_total  # true bit budget
         if capacity <= 0 or self.n == 0:
             return self._empty_candidate(budget)
 
-        # Adaptive integer scale so capacity fits the DP array.
+        # Adaptive integer scale so capacity fits the DP arrays.
         scale = max(1, int(math.ceil(capacity / self.max_capacity_units)))
         cap_max = int(capacity / scale)
         if cap_max < self.n:
             scale = int(capacity / self.n) or 1
             cap_max = int(capacity / scale)
 
+        neg_inf = -1e300
+        k3_max = self.max_low3
+        k6_max = self.max_low6
+
         # Scaled integer weights per (component, bit), min weight 1.
         scaled_w = np.zeros((self.n, len(self.bits)), dtype=np.int64)
         vals = np.zeros((self.n, len(self.bits)), dtype=float)
+        # Per-bit low-band category: 0 = high (>=8), 1 = 4/6-bit (<=6 only),
+        # 2 = 3-bit (both caps).
+        bit_band = np.zeros(len(self.bits), dtype=int)
+        for j, b in enumerate(self.bits):
+            if b == 3:
+                bit_band[j] = 2
+            elif b <= 6:
+                bit_band[j] = 1
         for i in range(self.n):
             for j, b in enumerate(self.bits):
-                w_int = max(1, int(self._weight(i, b) / scale))
-                # Full-resolution weight, used for the reported size.
-                scaled_w[i, j] = w_int
-                vals[i, j] = self._value(i, b)
+                scaled_w[i, j] = max(1, int(self._weight(i, b) / scale))
+                # Critical-component shielding: a shielded (anchor) sub-component
+                # must never be quantized below CRITICAL_MIN_BITS.
+                if self._critical_mask[i] and b < self.critical_min_bits:
+                    vals[i, j] = neg_inf
+                else:
+                    vals[i, j] = self._value(i, b)
 
-        # Forward DP: dp[cap] = max value achievable at exact capacity cap.
-        neg_inf = -1e300
-        dp = np.full(cap_max + 1, neg_inf)
-        dp[0] = 0.0
-        choices = []  # per component: chosen item index at each capacity
+        # Sparse state DP: states[(k3, k6)] = np.ndarray over exact capacity cap,
+        # holding the best value achievable after processing some prefix of
+        # components with ``k3`` three-bit and ``k6`` <=6-bit components.
+        state_hist = []  # per-component snapshot for backtracking
+        states = {(0, 0): np.full(cap_max + 1, neg_inf)}
+        states[(0, 0)][0] = 0.0
+        state_hist.append({s: a.copy() for s, a in states.items()})
+
         for i in range(self.n):
-            prev = dp
-            cur = np.full(cap_max + 1, neg_inf)
-            item = np.zeros(cap_max + 1, dtype=np.int8)
-            for j in range(len(self.bits)):
-                w = int(scaled_w[i, j])
-                v = float(vals[i, j])
-                if w > cap_max:
-                    continue
-                cand = np.full(cap_max + 1, neg_inf)
-                cand[w:] = prev[: cap_max + 1 - w] + v
-                better = cand > cur
-                cur = np.where(better, cand, cur)
-                item[better] = j
-            # deterministic tie-break: prefer lower capacity / stable order
-            dp = cur
-            choices.append(item)
+            live = list(states.items())
+            cur: dict[tuple[int, int], np.ndarray] = {}
+            for (k3, k6), prev in live:
+                for j in range(len(self.bits)):
+                    b = self.bits[j]
+                    w = int(scaled_w[i, j])
+                    v = float(vals[i, j])
+                    if v == neg_inf or w > cap_max:
+                        continue
+                    band = bit_band[j]
+                    if band == 2:  # 3-bit: consumes both caps
+                        if k3 >= k3_max or k6 >= k6_max:
+                            continue
+                        nk3, nk6 = k3 + 1, k6 + 1
+                    elif band == 1:  # 4/6-bit: consumes <=6 cap only
+                        if k6 >= k6_max:
+                            continue
+                        nk3, nk6 = k3, k6 + 1
+                    else:  # 8/16-bit: consumes neither cap
+                        nk3, nk6 = k3, k6
+                    nxt_arr = cur.setdefault(
+                        (nk3, nk6), np.full(cap_max + 1, neg_inf))
+                    reachable = prev != neg_inf
+                    cand = np.full(cap_max + 1, neg_inf)
+                    cand[w:] = np.where(reachable[: cap_max + 1 - w],
+                                        prev[: cap_max + 1 - w] + v,
+                                        neg_inf)
+                    np.maximum(nxt_arr, cand, out=nxt_arr)
+            states = cur
+            state_hist.append({s: a.copy() for s, a in states.items()})
 
-        best_cap = int(np.argmax(dp))
-        best_value = float(dp[best_cap])
+        # Best final state over all (k3, k6) within caps and all capacities.
+        best_val = neg_inf
+        best_key: tuple[int, int] | None = None
+        best_cap = 0
+        for (k3, k6), arr in states.items():
+            cap_i = int(np.argmax(arr))
+            val = float(arr[cap_i])
+            if val > best_val:
+                best_val, best_key, best_cap = val, (k3, k6), cap_i
 
-        # Backtrack the selected bit-width per component.
+        # No state fits the nominal budget (an aggressive target below the
+        # minimum weight achievable within the bulk caps).  Fall back to the
+        # minimum-weight caps-feasible configuration so that an over-budget
+        # assignment is still returned instead of a neg_inf empty result.
+        if best_val <= neg_inf / 2.0:
+            fb_cfg, fb_value = self._min_feasible_config()
+            return self._make_candidate(fb_cfg, fb_value, budget, scale)
+
         config: dict[str, str] = {}
         cap = best_cap
+        k3, k6 = best_key if best_key is not None else (0, 0)
         for i in range(self.n - 1, -1, -1):
-            j = int(choices[i][cap])
-            config[self.ids[i]] = f"{self.bits[j]}bit"
-            cap -= int(scaled_w[i, j])
+            prev = state_hist[i]
+            cur = state_hist[i + 1]
+            chosen = -1
+            for j in range(len(self.bits)):
+                b = self.bits[j]
+                w = int(scaled_w[i, j])
+                v = float(vals[i, j])
+                if v == neg_inf or w > cap:
+                    continue
+                band = bit_band[j]
+                if band == 2:
+                    if k3 < 1 or k6 < 1:
+                        continue
+                    pk3, pk6 = k3 - 1, k6 - 1
+                elif band == 1:
+                    if k6 < 1:
+                        continue
+                    pk3, pk6 = k3, k6 - 1
+                else:
+                    pk3, pk6 = k3, k6
+                pred_cap = cap - w
+                p_arr = prev.get((pk3, pk6))
+                if p_arr is None or p_arr[pred_cap] == neg_inf:
+                    continue
+                c_arr = cur.get((k3, k6))
+                if c_arr is None:
+                    continue
+                if abs((p_arr[pred_cap] + v) - c_arr[cap]) < 1e-6:
+                    chosen = j
+                    break
+            if chosen < 0:
+                chosen = len(self.bits) - 1  # 16-bit fallback
+            config[self.ids[i]] = f"{self.bits[chosen]}bit"
+            cap -= int(scaled_w[i, chosen])
+            band = bit_band[chosen]
+            if band == 2:
+                k3 -= 1
+                k6 -= 1
+            elif band == 1:
+                k6 -= 1
 
-        return self._make_candidate(config, best_value, budget, scale)
+        return self._make_candidate(config, best_val, budget, scale)
 
     def _make_candidate(self, config: dict[str, str], value: float,
                         target_bits_per_param: float, scale: int) -> dict:
@@ -261,11 +458,12 @@ class MpcAllocator:
             "size_reduction_pct": (1.0 - total_bits / max_bits) * 100.0,
             "target_bits_per_param": target_bits_per_param,
             "weight_scale": scale,
-            "n_2bit": counts[2],
-            "n_3bit": counts[3],
-            "n_4bit": counts[4],
-            "n_8bit": counts[8],
-            "n_16bit": counts[16],
+            "n_2bit": counts.get(2, 0),
+            "n_3bit": counts.get(3, 0),
+            "n_4bit": counts.get(4, 0),
+            "n_6bit": counts.get(6, 0),
+            "n_8bit": counts.get(8, 0),
+            "n_16bit": counts.get(16, 0),
         }
 
     def _empty_candidate(self, target_bits_per_param: float) -> dict:
@@ -276,13 +474,13 @@ class MpcAllocator:
                         target_step: float = 0.5) -> list[dict]:
         """Budget-indexed Pareto frontier of MCKP-optimal configurations.
 
-        Sweeps average bit budgets from 2 bits/param up to 16 bits/param and
-        deduplicates identical assignments.  Indexed by *memory density*, never
-        by hand-picked layer percentiles.
+        Sweeps average bit budgets from ``min(BITS)`` bits/param up to 16
+        bits/param and deduplicates identical assignments.  Indexed by *memory
+        density*, never by hand-picked layer percentiles.
         """
         if targets is None:
             targets = []
-            t = 2.0
+            t = float(min(BITS))
             while t <= 16.0 + 1e-9:
                 targets.append(t)
                 t += target_step

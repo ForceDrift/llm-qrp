@@ -90,7 +90,8 @@ class TargetedQuantizer:
             if not (0 <= layer_idx < self.num_layers) or c not in ("attn", "mlp"):
                 continue
             normalized = {"2bit": "2bit", "3bit": "3bit", "4bit": "4bit",
-                          "8bit": "8bit", "16bit": "skip", "bf16": "skip"}.get(quant_type)
+                          "6bit": "6bit", "8bit": "8bit",
+                          "16bit": "skip", "bf16": "skip"}.get(quant_type)
             if normalized == "skip":
                 continue
             layer = self.layers[layer_idx]
@@ -115,7 +116,7 @@ class TargetedQuantizer:
             old_proj = getattr(parent, name)
             if outlier_cols:
                 new_proj = OutlierProtectedLinear(old_proj, outlier_cols, int(quant_type[0]))
-            elif quant_type in ("2bit", "3bit"):
+            elif quant_type in ("2bit", "3bit", "6bit"):
                 new_proj = UniformIntLinear(old_proj, int(quant_type[0]))
             elif quant_type == "4bit":
                 new_proj = bnb.nn.modules.Linear4bit(
