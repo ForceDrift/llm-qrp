@@ -4,49 +4,110 @@
   "baseline_size_mb": 499.122176,
   "uniform_int8_size_mb": 249.561088,
   "uniform_int4_size_mb": 124.780544,
-  "optimal_size_mb": 249.561088,
-  "size_reduction_pct": 50.0,
-  "compression_ratio": 2.0,
+  "optimal_size_mb": 240.807168,
+  "size_reduction_pct": 51.753863166360304,
+  "compression_ratio": 2.072704812507907,
   "optimal_layer_config": {
-    "pct_4bit": 10,
-    "pct_8bit": 100,
-    "n_4bit": 2,
-    "n_8bit_only": 25,
-    "n_bf16": 0,
+    "accuracy": 0.24762711194802423,
+    "baseline_accuracy": 0.2519157436934216,
+    "bits_per_param": 7.719381893382352,
+    "size_reduction_pct": 51.753863166360304,
+    "accuracy_drop_pct": 1.702407194770883,
+    "efficiency": 30.400402045601993,
+    "n_2bit": 0,
+    "n_3bit": 0,
+    "n_4bit": 0,
+    "n_6bit": 14,
+    "n_8bit": 42,
+    "n_16bit": 0,
+    "component_configs": {
+      "0.attn": "8bit",
+      "0.mlp": "8bit",
+      "1.attn": "8bit",
+      "1.mlp": "8bit",
+      "10.attn": "6bit",
+      "10.mlp": "8bit",
+      "11.attn": "6bit",
+      "11.mlp": "8bit",
+      "12.attn": "6bit",
+      "12.mlp": "8bit",
+      "13.attn": "6bit",
+      "13.mlp": "8bit",
+      "14.attn": "6bit",
+      "14.mlp": "8bit",
+      "15.attn": "6bit",
+      "15.mlp": "8bit",
+      "16.attn": "6bit",
+      "16.mlp": "8bit",
+      "17.attn": "8bit",
+      "17.mlp": "8bit",
+      "18.attn": "6bit",
+      "18.mlp": "8bit",
+      "19.attn": "8bit",
+      "19.mlp": "8bit",
+      "2.attn": "6bit",
+      "2.mlp": "8bit",
+      "20.attn": "6bit",
+      "20.mlp": "8bit",
+      "21.attn": "8bit",
+      "21.mlp": "8bit",
+      "22.attn": "8bit",
+      "22.mlp": "8bit",
+      "23.attn": "8bit",
+      "23.mlp": "8bit",
+      "24.attn": "8bit",
+      "24.mlp": "8bit",
+      "25.attn": "8bit",
+      "25.mlp": "8bit",
+      "26.attn": "8bit",
+      "26.mlp": "8bit",
+      "27.attn": "8bit",
+      "27.mlp": "8bit",
+      "3.attn": "8bit",
+      "3.mlp": "8bit",
+      "4.attn": "8bit",
+      "4.mlp": "8bit",
+      "5.attn": "6bit",
+      "5.mlp": "8bit",
+      "6.attn": "8bit",
+      "6.mlp": "8bit",
+      "7.attn": "6bit",
+      "7.mlp": "8bit",
+      "8.attn": "6bit",
+      "8.mlp": "8bit",
+      "9.attn": "6bit",
+      "9.mlp": "8bit"
+    },
     "layer_configs": {
-      "1": "4bit",
-      "2": "4bit",
-      "3": "8bit",
-      "4": "8bit",
-      "5": "8bit",
-      "6": "8bit",
-      "7": "8bit",
-      "8": "8bit",
-      "9": "8bit",
-      "10": "8bit",
-      "11": "8bit",
-      "12": "8bit",
-      "13": "8bit",
-      "14": "8bit",
-      "15": "8bit",
-      "16": "8bit",
+      "0": "8bit",
+      "1": "8bit",
+      "10": "6bit",
+      "11": "6bit",
+      "12": "6bit",
+      "13": "6bit",
+      "14": "6bit",
+      "15": "6bit",
+      "16": "6bit",
       "17": "8bit",
-      "18": "8bit",
+      "18": "6bit",
       "19": "8bit",
-      "20": "8bit",
+      "2": "6bit",
+      "20": "6bit",
       "21": "8bit",
       "22": "8bit",
       "23": "8bit",
       "24": "8bit",
       "25": "8bit",
       "26": "8bit",
-      "27": "8bit"
-    },
-    "accuracy": 0.2562274791859227,
-    "estimated_size_bytes": 236191744.0,
-    "size_reduction_pct": 50.92592592592593,
-    "accuracy_drop_pct": -1.6261907457371105,
-    "efficiency": 5092.592592592593
+      "27": "8bit",
+      "3": "8bit",
+      "4": "8bit",
+      "5": "6bit",
+      "6": "8bit",
+      "7": "6bit",
+      "8": "6bit",
+      "9": "6bit"
+    }
   },
   "external_baselines": [
     {
@@ -123,7 +184,7 @@
         "slim2": 0.009307,
         "smoothquant8": 0.247271,
         "atom4": 0.144815,
-        "mixed": 0.256227
+        "mixed": 0.247386
       },
       "size_mb": {
         "bf16": 499.1222,
@@ -135,19 +196,19 @@
         "slim2": 62.3903,
         "smoothquant8": 249.5611,
         "atom4": 124.7805,
-        "mixed": 249.5611
+        "mixed": 240.8072
       },
       "vram_mb": {
         "bf16": 1471.58,
         "int8": 1234.41,
         "int4": 1118.73,
-        "gptq4": 1469.95,
+        "gptq4": 1469.96,
         "awq4": 1469.95,
         "spqr3": 1469.95,
         "slim2": 1469.95,
         "smoothquant8": 1469.95,
         "atom4": 1469.95,
-        "mixed": 1234.61
+        "mixed": 1472.24
       },
       "efficiency": {
         "bf16": 0.000505,
@@ -170,7 +231,7 @@
         "slim2": 96.3086,
         "smoothquant8": 1.9261,
         "atom4": 42.5629,
-        "mixed": -1.6262
+        "mixed": 1.8805
       },
       "efficiency_gain_pct_vs_bf16": {
         "int8": -27.5217,
@@ -181,7 +242,7 @@
         "slim2": -70.4687,
         "smoothquant8": 96.1479,
         "atom4": 129.7485,
-        "mixed": 103.2524
+        "mixed": 103.3728
       }
     },
     "tfqa": {
@@ -196,7 +257,7 @@
         "slim2": 6.6e-05,
         "smoothquant8": 0.047411,
         "atom4": 0.036047,
-        "mixed": 0.046349
+        "mixed": 0.046798
       },
       "size_mb": {
         "bf16": 499.1222,
@@ -208,19 +269,19 @@
         "slim2": 62.3903,
         "smoothquant8": 249.5611,
         "atom4": 124.7805,
-        "mixed": 249.5611
+        "mixed": 240.8072
       },
       "vram_mb": {
-        "bf16": 1202.38,
+        "bf16": 1202.56,
         "int8": 965.2,
         "int4": 849.52,
-        "gptq4": 1202.38,
-        "awq4": 1203.19,
+        "gptq4": 1202.4,
+        "awq4": 1202.38,
         "spqr3": 1202.38,
         "slim2": 1202.38,
         "smoothquant8": 1202.38,
         "atom4": 1202.38,
-        "mixed": 965.41
+        "mixed": 1203.2
       },
       "efficiency": {
         "bf16": 9.6e-05,
@@ -232,7 +293,7 @@
         "slim2": 1e-06,
         "smoothquant8": 0.00019,
         "atom4": 0.000289,
-        "mixed": 0.000186
+        "mixed": 0.000194
       },
       "accuracy_drop_pct_vs_bf16": {
         "int8": 84.85,
@@ -243,7 +304,7 @@
         "slim2": 99.8617,
         "smoothquant8": 0.6155,
         "atom4": 24.438,
-        "mixed": 2.8416
+        "mixed": 1.9014
       },
       "efficiency_gain_pct_vs_bf16": {
         "int8": -69.7001,
@@ -254,7 +315,7 @@
         "slim2": -98.8933,
         "smoothquant8": 98.7689,
         "atom4": 202.2479,
-        "mixed": 94.3169
+        "mixed": 103.3294
       }
     },
     "mmlu": {
@@ -269,7 +330,7 @@
         "slim2": 0.000195,
         "smoothquant8": 0.005845,
         "atom4": 0.002682,
-        "mixed": 0.006442
+        "mixed": 0.005173
       },
       "size_mb": {
         "bf16": 499.1222,
@@ -281,19 +342,19 @@
         "slim2": 62.3903,
         "smoothquant8": 249.5611,
         "atom4": 124.7805,
-        "mixed": 249.5611
+        "mixed": 240.8072
       },
       "vram_mb": {
-        "bf16": 1232.11,
+        "bf16": 1232.28,
         "int8": 994.93,
         "int4": 879.25,
-        "gptq4": 1232.99,
-        "awq4": 1232.99,
-        "spqr3": 1232.99,
+        "gptq4": 1232.13,
+        "awq4": 1232.11,
+        "spqr3": 1232.11,
         "slim2": 1232.99,
         "smoothquant8": 1232.11,
         "atom4": 1232.11,
-        "mixed": 995.14
+        "mixed": 1232.78
       },
       "efficiency": {
         "bf16": 1.4e-05,
@@ -305,7 +366,7 @@
         "slim2": 3e-06,
         "smoothquant8": 2.3e-05,
         "atom4": 2.1e-05,
-        "mixed": 2.6e-05
+        "mixed": 2.1e-05
       },
       "accuracy_drop_pct_vs_bf16": {
         "int8": 88.0833,
@@ -316,7 +377,7 @@
         "slim2": 97.1079,
         "smoothquant8": 13.335,
         "atom4": 60.2265,
-        "mixed": 4.4752
+        "mixed": 23.2893
       },
       "efficiency_gain_pct_vs_bf16": {
         "int8": -76.1667,
@@ -327,7 +388,7 @@
         "slim2": -76.8635,
         "smoothquant8": 73.33,
         "atom4": 59.0939,
-        "mixed": 91.0497
+        "mixed": 58.9986
       }
     }
   }

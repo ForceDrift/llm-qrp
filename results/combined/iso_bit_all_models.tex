@@ -1,0 +1,61 @@
+\begin{table*}[htbp]
+\centering
+\caption{\textbf{Iso-Bit Performance Matrix (all models).} Target-probability (exp$(-NLL)$) on GSM8K/TruthfulQA/MMLU at each method's native footprint. LLM-QRP (Ours) is our method; best per dataset column (excluding BF16) is bolded.}
+\label{tab:isobit_all}
+\vskip 0.15in
+\begin{small}
+\begin{sc}
+\begin{tabular}{llrrrrr}
+\toprule
+Model & Method & $B_{\mathrm{avg}}$ & Footprint & GSM8K & TruthfulQA & MMLU \\
+ & & (bits) & (MB) & & & \\
+\midrule
+\multirow{9}{*}{SmolLM2-135M}
+ & BF16 & 16.0 & 212.3 & 0.1891 & 0.0552 & 0.0062 \\
+ & Uniform INT8 & 8.0 & 106.2 & 0.1848 & \textbf{0.0551} & 0.0067 \\
+ & AWQ & 4.0 & 53.1 & 0.1683 & 0.0504 & 0.0045 \\
+ & GPTQ & 4.0 & 53.1 & 0.1381 & 0.0321 & 0.0047 \\
+ & SpQR & 3.0 & 55.7 & 0.1710 & 0.0524 & \textbf{0.0092} \\
+ & SliM-LLM & 2.0 & 26.5 & 0.0007 & 0.0000 & 0.0000 \\
+ & SmoothQuant & 8.0 & 106.2 & 0.1878 & 0.0549 & 0.0064 \\
+ & Atom & 4.0 & 53.1 & 0.1128 & 0.0362 & 0.0030 \\
+ & \textbf{LLM-QRP (Ours)} & 8.0 & 103.0 & \textbf{0.1885} & 0.0536 & 0.0057 \\
+\midrule
+\multirow{9}{*}{granite-4.0-350m}
+ & BF16 & 16.0 & 499.1 & 0.2521 & 0.0477 & 0.0067 \\
+ & Uniform INT8 & 8.0 & 249.6 & 0.0914 & 0.0072 & 0.0008 \\
+ & AWQ & 4.0 & 124.8 & 0.1911 & 0.0446 & 0.0082 \\
+ & GPTQ & 4.0 & 124.8 & 0.2147 & 0.0350 & 0.0056 \\
+ & SpQR & 3.0 & 130.7 & 0.2380 & 0.0464 & \textbf{0.0233} \\
+ & SliM-LLM & 2.0 & 62.4 & 0.0093 & 0.0001 & 0.0002 \\
+ & SmoothQuant & 8.0 & 249.6 & 0.2473 & \textbf{0.0474} & 0.0058 \\
+ & Atom & 4.0 & 124.8 & 0.1448 & 0.0360 & 0.0027 \\
+ & \textbf{LLM-QRP (Ours)} & 8.0 & 240.8 & \textbf{0.2474} & 0.0468 & 0.0052 \\
+\midrule
+\multirow{9}{*}{Qwen2.5-0.5B}
+ & BF16 & 16.0 & 715.7 & 0.4912 & 0.0431 & 0.0030 \\
+ & Uniform INT8 & 8.0 & 357.8 & 0.4820 & 0.0436 & 0.0023 \\
+ & AWQ & 4.0 & 178.9 & 0.4490 & 0.0450 & 0.0029 \\
+ & GPTQ & 4.0 & 178.9 & 0.3820 & 0.0309 & 0.0030 \\
+ & SpQR & 3.0 & 188.5 & 0.4850 & 0.0441 & 0.0036 \\
+ & SliM-LLM & 2.0 & 89.5 & 0.0298 & 0.0001 & 0.0003 \\
+ & SmoothQuant & 8.0 & 357.8 & 0.4905 & 0.0433 & 0.0030 \\
+ & Atom & 4.0 & 178.9 & 0.3821 & 0.0371 & 0.0027 \\
+ & \textbf{LLM-QRP (Ours)} & 8.0 & 352.6 & \textbf{0.4908} & 0.0418 & 0.0028 \\
+\midrule
+\multirow{9}{*}{LFM2-350M}
+ & BF16 & 16.0 & 392.2 & 0.4130 & 0.0543 & 0.0008 \\
+ & Uniform INT8 & 8.0 & 196.1 & \textbf{0.4145} & 0.0539 & 0.0008 \\
+ & AWQ & 4.0 & 98.0 & 0.3888 & 0.0497 & 0.0009 \\
+ & GPTQ & 4.0 & 98.0 & 0.3928 & 0.0433 & 0.0007 \\
+ & SpQR & 3.0 & 102.6 & 0.4138 & 0.0504 & 0.0003 \\
+ & SliM-LLM & 2.0 & 49.0 & 0.0628 & 0.0003 & 0.0001 \\
+ & SmoothQuant & 8.0 & 196.1 & 0.4124 & 0.0537 & 0.0008 \\
+ & Atom & 4.0 & 98.0 & 0.3597 & 0.0466 & \textbf{0.0030} \\
+ & \textbf{LLM-QRP (Ours)} & 8.0 & 146.1 & 0.4025 & \textbf{0.0557} & 0.0005 \\
+\bottomrule
+\end{tabular}
+\end{sc}
+\end{small}
+\vskip -0.1in
+\end{table*}

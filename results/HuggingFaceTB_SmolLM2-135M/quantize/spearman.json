@@ -1,0 +1,15 @@
+{
+  "baseline": 0.19009127798914202,
+  "n_components": 60,
+  "n_samples": 50,
+  "signals": {
+    "pca": {
+      "rho": -0.08074465129202557,
+      "p_value": null
+    },
+    "l2": {
+      "rho": 0.20955821061405944,
+      "p_value": null
+    }
+  }
+}

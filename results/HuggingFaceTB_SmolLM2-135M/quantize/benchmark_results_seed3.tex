@@ -1,0 +1,23 @@
+\begin{table}[htbp]
+  \centering
+  \small
+  \caption{Quantization Benchmark: Baselines vs. LLM-QRP (HuggingFaceTB/SmolLM2-135M)}
+  \label{tab:benchmark}
+  \begin{tabular}{lrrrrrr}
+    \toprule
+    \textbf{Method} & \textbf{Size (MB)} & \textbf{VRAM (MB)} & \textbf{Compression} & \textbf{GSM8K} & \textbf{TruthfulQA} & \textbf{MMLU} \\
+    \midrule
+    SmolLM2-135M & 212.3 & 645.6 & 1.00x & 0.2088 & 0.0403 & 0.0068 \\
+    Uniform INT8 & 106.2 & 545.0 & 2.00x & 0.2035 & 0.0399 & 0.0070 \\
+    Uniform INT4 & 53.1 & 495.9 & 4.00x & 0.1586 & 0.0318 & 0.0042 \\
+    GPTQ (4-bit) & 53.1 & 649.2 & 4.00x & 0.1541 & 0.0216 & 0.0029 \\
+    AWQ (4-bit) & 53.1 & 678.1 & 4.00x & 0.1866 & 0.0355 & 0.0055 \\
+    SpQR (3-bit) & 55.7 & 659.8 & 3.82x & 0.1918 & 0.0369 & 0.0064 \\
+    SliM-LLM (2-bit) & 26.5 & 653.3 & 8.00x & 0.0007 & 0.0000 & 0.0000 \\
+    SmoothQuant (8-bit) & 106.2 & 647.8 & 2.00x & 0.2072 & 0.0399 & 0.0068 \\
+    Atom (4-bit) & 53.1 & 648.4 & 4.00x & 0.1261 & 0.0265 & 0.0040 \\
+    \midrule
+    +LLM-QRP (quantized) & 103.0 & 646.8 & 2.06x & 0.2070 & 0.0385 & 0.0070 \\
+    \bottomrule
+  \end{tabular}
+\end{table}

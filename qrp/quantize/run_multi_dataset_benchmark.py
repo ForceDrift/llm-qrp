@@ -4,7 +4,9 @@ import gc
 import json
 import math
 import os
+import random
 
+import numpy as np
 import torch
 from datasets import load_dataset
 from tqdm import tqdm
@@ -54,11 +56,15 @@ DATASET_REGISTRY = {
 }
 
 
-def load_eval_pairs(dataset_key, n_samples):
+def load_eval_pairs(dataset_key, n_samples, seed=0):
     cfg = DATASET_REGISTRY[dataset_key]
     ds = load_dataset(*cfg["hf_path"], split=cfg["split"])
+    items = list(ds)
+    rng = random.Random(seed)
+    rng.shuffle(items)
+    items = items[:n_samples]
     pairs = []
-    for item in list(ds)[:n_samples]:
+    for item in items:
         q = item[cfg["question_key"]]
         a = item[cfg["answer_key"]]
         if dataset_key == "mmlu":
@@ -202,6 +208,10 @@ def main():
     parser.add_argument("--output-folder", type=str, required=True)
     parser.add_argument("--samples", type=int, default=50,
                         help="Number of samples per dataset")
+    parser.add_argument("--seed", type=int, default=0,
+                        help="Random seed for evaluation sample selection")
+    parser.add_argument("--output-suffix", type=str, default="",
+                        help="Suffix appended to output JSON/CSV/TEX filenames (e.g. a seed)")
     parser.add_argument("--datasets", type=str, default="gsm8k,tfqa",
                         help="Comma-separated: gsm8k, tfqa, mmlu")
     parser.add_argument("--with-gptq", action="store_true",
@@ -292,6 +302,12 @@ def main():
     parser.add_argument("--atom-seqlen", type=int, default=2048,
                         help="Sequence length of each Atom calibration sequence")
     args = parser.parse_args()
+
+    random.seed(args.seed)
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(args.seed)
 
     dataset_keys = [d.strip() for d in args.datasets.split(",")]
     for k in dataset_keys:
@@ -587,7 +603,7 @@ def main():
     for ds_key in dataset_keys:
         display = DATASET_REGISTRY[ds_key]["display"]
         print(f"\n---- {display} ----")
-        pairs = load_eval_pairs(ds_key, args.samples)
+        pairs = load_eval_pairs(ds_key, args.samples, seed=args.seed)
         ds_pairs[ds_key] = pairs
 
         for i, (key, desc, configs, comp_configs) in enumerate(base_conditions, 1):
@@ -717,15 +733,17 @@ def main():
             print(f"    {method_labels[key]:<22} Acc drop: {drop_str:>6}   Efficiency gain: {gain_str}")
 
     os.makedirs(quantize_dir, exist_ok=True)
-    csv_path = os.path.join(quantize_dir, "benchmark_results.csv")
-    tex_path = os.path.join(quantize_dir, "benchmark_results.tex")
+    suffix = f"_{args.output_suffix}" if args.output_suffix else ""
+    csv_path = os.path.join(quantize_dir, f"benchmark_results{suffix}.csv")
+    tex_path = os.path.join(quantize_dir, f"benchmark_results{suffix}.tex")
     write_csv(table_rows, dataset_displays, csv_path)
     write_latex(table_rows, dataset_displays, args.model_name, tex_path)
 
-    json_path = os.path.join(quantize_dir, "multi_dataset_benchmark.json")
+    json_path = os.path.join(quantize_dir, f"multi_dataset_benchmark{suffix}.json")
     with open(json_path, "w") as f:
         json.dump({
             "model_name":             args.model_name,
+            "seed":                   args.seed,
             "samples_per_dataset":    args.samples,
             "baseline_size_mb":       baseline_size_mb,
             "uniform_int8_size_mb":   int8_size_mb,

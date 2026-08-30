@@ -1,0 +1,35 @@
+{
+  "model_name": "Qwen/Qwen2.5-0.5B",
+  "n_prompts": 5,
+  "output_tokens": 64,
+  "results": {
+    "bf16": {
+      "peak_vram_mb": 1648.61767578125,
+      "latency_s": 8.383699699999852,
+      "tokens_per_sec": 38.169306088099226,
+      "total_output_tokens": 320,
+      "size_mb": 988.065536
+    },
+    "int8": {
+      "peak_vram_mb": 1305.41552734375,
+      "latency_s": 18.57991200000106,
+      "tokens_per_sec": 17.222901809221796,
+      "total_output_tokens": 320,
+      "size_mb": 494.032768
+    },
+    "int4": {
+      "peak_vram_mb": 1146.46533203125,
+      "latency_s": 13.924500699999044,
+      "tokens_per_sec": 22.981075364520752,
+      "total_output_tokens": 320,
+      "size_mb": 157.559744
+    },
+    "mixed": {
+      "peak_vram_mb": 1331.55712890625,
+      "latency_s": 15.734388199998648,
+      "tokens_per_sec": 20.337619482403994,
+      "total_output_tokens": 320,
+      "size_mb": 352.60616861538466
+    }
+  }
+}
