@@ -1,0 +1,459 @@
+{
+  "model_name": "ibm-granite/granite-4.0-350m-base",
+  "dataset": null,
+  "signals": [
+    "sled",
+    "entropy"
+  ],
+  "cot_masked": true,
+  "components": [
+    {
+      "id": "0.attn",
+      "layer": 0,
+      "component": "attn",
+      "sled": 0.8464031946769875,
+      "delta_h": 4.500299484729767,
+      "samples": 100
+    },
+    {
+      "id": "0.mlp",
+      "layer": 0,
+      "component": "mlp",
+      "sled": 0.8535352400326686,
+      "delta_h": 3.356503734588623,
+      "samples": 100
+    },
+    {
+      "id": "1.attn",
+      "layer": 1,
+      "component": "attn",
+      "sled": 0.854343778354214,
+      "delta_h": 0.8394547182321549,
+      "samples": 100
+    },
+    {
+      "id": "1.mlp",
+      "layer": 1,
+      "component": "mlp",
+      "sled": 0.8542011010053521,
+      "delta_h": 0.4161063146591186,
+      "samples": 100
+    },
+    {
+      "id": "10.attn",
+      "layer": 10,
+      "component": "attn",
+      "sled": 0.8542294807865283,
+      "delta_h": 0.1374071990698576,
+      "samples": 100
+    },
+    {
+      "id": "10.mlp",
+      "layer": 10,
+      "component": "mlp",
+      "sled": 0.8545168337544247,
+      "delta_h": 0.12371004022657871,
+      "samples": 100
+    },
+    {
+      "id": "11.attn",
+      "layer": 11,
+      "component": "attn",
+      "sled": 0.8544511073382308,
+      "delta_h": 0.11426854453980922,
+      "samples": 100
+    },
+    {
+      "id": "11.mlp",
+      "layer": 11,
+      "component": "mlp",
+      "sled": 0.8544665172790528,
+      "delta_h": 0.10788918063044547,
+      "samples": 100
+    },
+    {
+      "id": "12.attn",
+      "layer": 12,
+      "component": "attn",
+      "sled": 0.8544209648463692,
+      "delta_h": 0.15366982378065586,
+      "samples": 100
+    },
+    {
+      "id": "12.mlp",
+      "layer": 12,
+      "component": "mlp",
+      "sled": 0.8544706999241553,
+      "delta_h": 0.14369284711778163,
+      "samples": 100
+    },
+    {
+      "id": "13.attn",
+      "layer": 13,
+      "component": "attn",
+      "sled": 0.8547365274540322,
+      "delta_h": 0.15238202519714833,
+      "samples": 100
+    },
+    {
+      "id": "13.mlp",
+      "layer": 13,
+      "component": "mlp",
+      "sled": 0.8544781891286649,
+      "delta_h": 0.15065249368548395,
+      "samples": 100
+    },
+    {
+      "id": "14.attn",
+      "layer": 14,
+      "component": "attn",
+      "sled": 0.8542376642881352,
+      "delta_h": 0.1305191371589899,
+      "samples": 100
+    },
+    {
+      "id": "14.mlp",
+      "layer": 14,
+      "component": "mlp",
+      "sled": 0.854428643475973,
+      "delta_h": 0.13511607594788075,
+      "samples": 100
+    },
+    {
+      "id": "15.attn",
+      "layer": 15,
+      "component": "attn",
+      "sled": 0.8542556585607444,
+      "delta_h": 0.21335082054138182,
+      "samples": 100
+    },
+    {
+      "id": "15.mlp",
+      "layer": 15,
+      "component": "mlp",
+      "sled": 0.8544879750019696,
+      "delta_h": 0.19668050676584245,
+      "samples": 100
+    },
+    {
+      "id": "16.attn",
+      "layer": 16,
+      "component": "attn",
+      "sled": 0.8546295233320038,
+      "delta_h": 0.2934975564479828,
+      "samples": 100
+    },
+    {
+      "id": "16.mlp",
+      "layer": 16,
+      "component": "mlp",
+      "sled": 0.8545644488988945,
+      "delta_h": 0.26445834428071974,
+      "samples": 100
+    },
+    {
+      "id": "17.attn",
+      "layer": 17,
+      "component": "attn",
+      "sled": 0.8543189750937822,
+      "delta_h": 0.35438586965203284,
+      "samples": 100
+    },
+    {
+      "id": "17.mlp",
+      "layer": 17,
+      "component": "mlp",
+      "sled": 0.854572294365965,
+      "delta_h": 0.31573262944817543,
+      "samples": 100
+    },
+    {
+      "id": "18.attn",
+      "layer": 18,
+      "component": "attn",
+      "sled": 0.8545413620777162,
+      "delta_h": 0.35440473243594167,
+      "samples": 100
+    },
+    {
+      "id": "18.mlp",
+      "layer": 18,
+      "component": "mlp",
+      "sled": 0.854496729446276,
+      "delta_h": 0.3006838171184063,
+      "samples": 100
+    },
+    {
+      "id": "19.attn",
+      "layer": 19,
+      "component": "attn",
+      "sled": 0.8540786995835684,
+      "delta_h": 0.4772141864895821,
+      "samples": 100
+    },
+    {
+      "id": "19.mlp",
+      "layer": 19,
+      "component": "mlp",
+      "sled": 0.854770304705207,
+      "delta_h": 0.41930026352405547,
+      "samples": 100
+    },
+    {
+      "id": "2.attn",
+      "layer": 2,
+      "component": "attn",
+      "sled": 0.854611995319764,
+      "delta_h": 0.18889476478099823,
+      "samples": 100
+    },
+    {
+      "id": "2.mlp",
+      "layer": 2,
+      "component": "mlp",
+      "sled": 0.8543488021771737,
+      "delta_h": 0.2346106544137001,
+      "samples": 100
+    },
+    {
+      "id": "20.attn",
+      "layer": 20,
+      "component": "attn",
+      "sled": 0.8533705923297628,
+      "delta_h": 0.30759600207209586,
+      "samples": 100
+    },
+    {
+      "id": "20.mlp",
+      "layer": 20,
+      "component": "mlp",
+      "sled": 0.8546358493348347,
+      "delta_h": 0.28326629757881167,
+      "samples": 100
+    },
+    {
+      "id": "21.attn",
+      "layer": 21,
+      "component": "attn",
+      "sled": 0.8493588865336951,
+      "delta_h": 0.6852637323737144,
+      "samples": 100
+    },
+    {
+      "id": "21.mlp",
+      "layer": 21,
+      "component": "mlp",
+      "sled": 0.8539811702028816,
+      "delta_h": 0.6122071099281311,
+      "samples": 100
+    },
+    {
+      "id": "22.attn",
+      "layer": 22,
+      "component": "attn",
+      "sled": 0.7970585864324587,
+      "delta_h": 2.469216592311859,
+      "samples": 100
+    },
+    {
+      "id": "22.mlp",
+      "layer": 22,
+      "component": "mlp",
+      "sled": 0.8487494686371098,
+      "delta_h": 2.2513543021678926,
+      "samples": 100
+    },
+    {
+      "id": "23.attn",
+      "layer": 23,
+      "component": "attn",
+      "sled": 0.8138164305669493,
+      "delta_h": 3.715485680103302,
+      "samples": 100
+    },
+    {
+      "id": "23.mlp",
+      "layer": 23,
+      "component": "mlp",
+      "sled": 0.8416720604323552,
+      "delta_h": 3.1938776779174805,
+      "samples": 100
+    },
+    {
+      "id": "24.attn",
+      "layer": 24,
+      "component": "attn",
+      "sled": 0.8287031501338149,
+      "delta_h": 1.8211208987236023,
+      "samples": 100
+    },
+    {
+      "id": "24.mlp",
+      "layer": 24,
+      "component": "mlp",
+      "sled": 0.8361755423000026,
+      "delta_h": 1.4446519523859025,
+      "samples": 100
+    },
+    {
+      "id": "25.attn",
+      "layer": 25,
+      "component": "attn",
+      "sled": 0.7903191421803939,
+      "delta_h": 3.0957558059692385,
+      "samples": 100
+    },
+    {
+      "id": "25.mlp",
+      "layer": 25,
+      "component": "mlp",
+      "sled": 0.8213939425750797,
+      "delta_h": 2.1999464619159697,
+      "samples": 100
+    },
+    {
+      "id": "26.attn",
+      "layer": 26,
+      "component": "attn",
+      "sled": 0.5283477408110642,
+      "delta_h": 7.0001836681365965,
+      "samples": 100
+    },
+    {
+      "id": "26.mlp",
+      "layer": 26,
+      "component": "mlp",
+      "sled": 0.6650246959838197,
+      "delta_h": 2.8880711078643797,
+      "samples": 100
+    },
+    {
+      "id": "27.attn",
+      "layer": 27,
+      "component": "attn",
+      "sled": 0.6645381979400865,
+      "delta_h": 3.970506763458252,
+      "samples": 100
+    },
+    {
+      "id": "27.mlp",
+      "layer": 27,
+      "component": "mlp",
+      "sled": -0.4394715870151732,
+      "delta_h": 0.32585136979818347,
+      "samples": 100
+    },
+    {
+      "id": "3.attn",
+      "layer": 3,
+      "component": "attn",
+      "sled": 0.8546883767438221,
+      "delta_h": 0.08680701896548271,
+      "samples": 100
+    },
+    {
+      "id": "3.mlp",
+      "layer": 3,
+      "component": "mlp",
+      "sled": 0.854392357872422,
+      "delta_h": 0.11627745755016804,
+      "samples": 100
+    },
+    {
+      "id": "4.attn",
+      "layer": 4,
+      "component": "attn",
+      "sled": 0.8542109581498081,
+      "delta_h": 0.07775748495012522,
+      "samples": 100
+    },
+    {
+      "id": "4.mlp",
+      "layer": 4,
+      "component": "mlp",
+      "sled": 0.8542853241898569,
+      "delta_h": 0.0943534854054451,
+      "samples": 100
+    },
+    {
+      "id": "5.attn",
+      "layer": 5,
+      "component": "attn",
+      "sled": 0.8542109983545871,
+      "delta_h": 0.12341308161616325,
+      "samples": 100
+    },
+    {
+      "id": "5.mlp",
+      "layer": 5,
+      "component": "mlp",
+      "sled": 0.8543660279732832,
+      "delta_h": 0.11870312482118607,
+      "samples": 100
+    },
+    {
+      "id": "6.attn",
+      "layer": 6,
+      "component": "attn",
+      "sled": 0.8543300543245722,
+      "delta_h": 0.08913989558815956,
+      "samples": 100
+    },
+    {
+      "id": "6.mlp",
+      "layer": 6,
+      "component": "mlp",
+      "sled": 0.8543736562125092,
+      "delta_h": 0.09959924176335334,
+      "samples": 100
+    },
+    {
+      "id": "7.attn",
+      "layer": 7,
+      "component": "attn",
+      "sled": 0.8544034172240224,
+      "delta_h": 0.11977850809693337,
+      "samples": 100
+    },
+    {
+      "id": "7.mlp",
+      "layer": 7,
+      "component": "mlp",
+      "sled": 0.8543229556491793,
+      "delta_h": 0.12130159065127373,
+      "samples": 100
+    },
+    {
+      "id": "8.attn",
+      "layer": 8,
+      "component": "attn",
+      "sled": 0.8547447417286278,
+      "delta_h": 0.13839223578572274,
+      "samples": 100
+    },
+    {
+      "id": "8.mlp",
+      "layer": 8,
+      "component": "mlp",
+      "sled": 0.85445742715056,
+      "delta_h": 0.13467139407992362,
+      "samples": 100
+    },
+    {
+      "id": "9.attn",
+      "layer": 9,
+      "component": "attn",
+      "sled": 0.855025744043693,
+      "delta_h": 0.10204014658927918,
+      "samples": 100
+    },
+    {
+      "id": "9.mlp",
+      "layer": 9,
+      "component": "mlp",
+      "sled": 0.8544885625880536,
+      "delta_h": 0.0992723248153925,
+      "samples": 100
+    }
+  ]
+}

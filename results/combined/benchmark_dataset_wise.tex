@@ -1,0 +1,27 @@
+\begin{table}[htbp]
+  \centering
+  \footnotesize
+  \caption{Dataset-wise accuracy comparison. Best per-model result \textbf{bolded}.}
+  \label{tab:dataset_wise}
+  \begin{tabular}{llrrrrrrrrrrrr}
+    \toprule
+    \textbf{Model} & \textbf{Dataset} & \textbf{BF16} & \textbf{Uniform INT8} & \textbf{Uniform INT4} & \textbf{GPTQ (4-bit)} & \textbf{AWQ (4-bit)} & \textbf{SpQR (3-bit)} & \textbf{SliM-LLM (2-bit)} & \textbf{SmoothQuant (8-bit)} & \textbf{Atom (4-bit)} & \textbf{LLM-QRP} & \textbf{VRAM (MB)} & \textbf{Compression} \\
+    \midrule
+    SmolLM2-135M & GSM8K & 0.1891 & 0.1848 & 0.1458 & 0.1381 & 0.1683 & 0.1710 & 0.0007 & 0.1878 & 0.1128 & \textbf{0.1885} & 641.0 & 2.06x \\
+     & TruthfulQA & 0.0552 & 0.0551 & 0.0432 & 0.0321 & 0.0504 & 0.0524 & 0.0000 & 0.0549 & 0.0362 & \textbf{0.0536} & 493.0 & 2.06x \\
+     & MMLU & 0.0062 & 0.0067 & 0.0057 & 0.0047 & 0.0045 & \textbf{0.0092} & 0.0000 & 0.0064 & 0.0030 & \textbf{0.0057} & 507.3 & 2.06x \\
+    \midrule
+    LFM2-350M & GSM8K & 0.4130 & \textbf{0.4145} & 0.3825 & 0.3928 & 0.3888 & 0.4138 & 0.0628 & 0.4124 & 0.3597 & \textbf{0.4025} & 1443.8 & 2.68x \\
+     & TruthfulQA & 0.0543 & 0.0539 & 0.0515 & 0.0433 & 0.0497 & 0.0504 & 0.0003 & 0.0537 & 0.0466 & \textbf{0.0557} & 1271.9 & 2.68x \\
+     & MMLU & 0.0008 & 0.0008 & 0.0008 & 0.0007 & 0.0009 & 0.0003 & 0.0001 & 0.0008 & \textbf{0.0030} & \textbf{0.0005} & 1290.5 & 2.68x \\
+    \midrule
+    Qwen2.5-0.5B & GSM8K & 0.4912 & 0.4820 & 0.3973 & 0.3820 & 0.4490 & 0.4850 & 0.0298 & 0.4905 & 0.3821 & \textbf{0.4908} & 2160.5 & 2.03x \\
+     & TruthfulQA & 0.0431 & 0.0436 & \textbf{0.0464} & 0.0309 & 0.0450 & 0.0441 & 0.0001 & 0.0433 & 0.0371 & \textbf{0.0418} & 1723.8 & 2.03x \\
+     & MMLU & 0.0030 & 0.0023 & \textbf{0.0085} & 0.0030 & 0.0029 & 0.0036 & 0.0003 & 0.0030 & 0.0027 & \textbf{0.0028} & 1758.9 & 2.03x \\
+    \midrule
+    granite-4.0-350m-base & GSM8K & 0.2521 & 0.0914 & 0.1252 & 0.2147 & 0.1911 & 0.2380 & 0.0093 & 0.2473 & 0.1448 & \textbf{0.2474} & 1472.2 & 2.07x \\
+     & TruthfulQA & 0.0477 & 0.0072 & 0.0363 & 0.0350 & 0.0446 & 0.0464 & 0.0001 & 0.0474 & 0.0360 & \textbf{0.0468} & 1203.2 & 2.07x \\
+     & MMLU & 0.0067 & 0.0008 & 0.0100 & 0.0056 & 0.0082 & \textbf{0.0233} & 0.0002 & 0.0058 & 0.0027 & \textbf{0.0052} & 1232.8 & 2.07x \\
+    \bottomrule
+  \end{tabular}
+\end{table}

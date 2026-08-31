@@ -1,0 +1,35 @@
+{
+  "model_name": "ibm-granite/granite-4.0-350m-base",
+  "n_prompts": 5,
+  "output_tokens": 64,
+  "results": {
+    "bf16": {
+      "peak_vram_mb": 1161.642578125,
+      "latency_s": 8.23276690000057,
+      "tokens_per_sec": 28.78740560478927,
+      "total_output_tokens": 237,
+      "size_mb": 704.759808
+    },
+    "int8": {
+      "peak_vram_mb": 924.9169921875,
+      "latency_s": 20.643225300002086,
+      "tokens_per_sec": 15.501453641547362,
+      "total_output_tokens": 320,
+      "size_mb": 352.379904
+    },
+    "int4": {
+      "peak_vram_mb": 814.3935546875,
+      "latency_s": 10.815568000001804,
+      "tokens_per_sec": 23.946962378670893,
+      "total_output_tokens": 259,
+      "size_mb": 113.79968
+    },
+    "mixed": {
+      "peak_vram_mb": 959.78125,
+      "latency_s": 18.382848400000512,
+      "tokens_per_sec": 17.407530815517745,
+      "total_output_tokens": 320,
+      "size_mb": 240.80716799999996
+    }
+  }
+}

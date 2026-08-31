@@ -1,0 +1,82 @@
+{
+  "SmolLM2-135M": {
+    "bits_per_param": 7.762,
+    "size_reduction_pct": 51.49,
+    "compression_ratio": 2.061,
+    "baseline_accuracy": 0.18982941217242708,
+    "best_per_dataset": {
+      "gsm8k": {
+        "method": "mixed",
+        "value": 0.1885
+      },
+      "tfqa": {
+        "method": "int8",
+        "value": 0.0551
+      },
+      "mmlu": {
+        "method": "spqr3",
+        "value": 0.0092
+      }
+    }
+  },
+  "granite-4.0-350m": {
+    "bits_per_param": 7.719,
+    "size_reduction_pct": 51.75,
+    "compression_ratio": 2.073,
+    "baseline_accuracy": 0.2519157436934216,
+    "best_per_dataset": {
+      "gsm8k": {
+        "method": "mixed",
+        "value": 0.2474
+      },
+      "tfqa": {
+        "method": "smoothquant8",
+        "value": 0.0474
+      },
+      "mmlu": {
+        "method": "spqr3",
+        "value": 0.0233
+      }
+    }
+  },
+  "Qwen2.5-0.5B": {
+    "bits_per_param": 7.883,
+    "size_reduction_pct": 50.73,
+    "compression_ratio": 2.03,
+    "baseline_accuracy": 0.47920395455622183,
+    "best_per_dataset": {
+      "gsm8k": {
+        "method": "mixed",
+        "value": 0.4908
+      },
+      "tfqa": {
+        "method": "int4",
+        "value": 0.0464
+      },
+      "mmlu": {
+        "method": "int4",
+        "value": 0.0085
+      }
+    }
+  },
+  "LFM2-350M": {
+    "bits_per_param": 5.962,
+    "size_reduction_pct": 62.74,
+    "compression_ratio": 2.684,
+    "baseline_accuracy": 0.3976178881849556,
+    "best_per_dataset": {
+      "gsm8k": {
+        "method": "int8",
+        "value": 0.4145
+      },
+      "tfqa": {
+        "method": "mixed",
+        "value": 0.0557
+      },
+      "mmlu": {
+        "method": "atom4",
+        "value": 0.003
+      }
+    }
+  }
+}

@@ -1,0 +1,23 @@
+\begin{table}[htbp]
+  \centering
+  \small
+  \caption{Quantization Benchmark: Baselines vs. LLM-QRP (LiquidAI/LFM2-350M)}
+  \label{tab:benchmark}
+  \begin{tabular}{lrrrrrr}
+    \toprule
+    \textbf{Method} & \textbf{Size (MB)} & \textbf{VRAM (MB)} & \textbf{Compression} & \textbf{GSM8K} & \textbf{TruthfulQA} & \textbf{MMLU} \\
+    \midrule
+    LFM2-350M & 392.2 & 1641.7 & 1.00x & 0.4056 & 0.0313 & 0.0081 \\
+    Uniform INT8 & 196.1 & 1451.6 & 2.00x & 0.4076 & 0.0316 & 0.0081 \\
+    Uniform INT4 & 98.0 & 1363.7 & 4.00x & 0.3816 & 0.0300 & 0.0081 \\
+    GPTQ (4-bit) & 98.0 & 1637.2 & 4.00x & 0.3884 & 0.0260 & 0.0066 \\
+    AWQ (4-bit) & 98.0 & 1639.9 & 4.00x & 0.3801 & 0.0288 & 0.0067 \\
+    SpQR (3-bit) & 102.6 & 1640.4 & 3.82x & 0.4010 & 0.0306 & 0.0070 \\
+    SliM-LLM (2-bit) & 49.0 & 1639.8 & 8.00x & 0.0627 & 0.0003 & 0.0001 \\
+    SmoothQuant (8-bit) & 196.1 & 1644.2 & 2.00x & 0.4058 & 0.0314 & 0.0081 \\
+    Atom (4-bit) & 98.0 & 1645.6 & 4.00x & 0.3598 & 0.0290 & 0.0060 \\
+    \midrule
+    +LLM-QRP (quantized) & 146.1 & 1639.9 & 2.68x & 0.3961 & 0.0317 & 0.0068 \\
+    \bottomrule
+  \end{tabular}
+\end{table}

@@ -1,0 +1,35 @@
+{
+  "model_name": "LiquidAI/LFM2-350M",
+  "n_prompts": 5,
+  "output_tokens": 64,
+  "results": {
+    "bf16": {
+      "peak_vram_mb": 1246.4248046875,
+      "latency_s": 6.09158540000135,
+      "tokens_per_sec": 52.53148055675771,
+      "total_output_tokens": 320,
+      "size_mb": 708.967936
+    },
+    "int8": {
+      "peak_vram_mb": 1056.79833984375,
+      "latency_s": 10.838894799999252,
+      "tokens_per_sec": 29.52330527278686,
+      "total_output_tokens": 320,
+      "size_mb": 354.483968
+    },
+    "int4": {
+      "peak_vram_mb": 976.7587890625,
+      "latency_s": 8.062842899998941,
+      "tokens_per_sec": 39.68823453078095,
+      "total_output_tokens": 320,
+      "size_mb": 128.221056
+    },
+    "mixed": {
+      "peak_vram_mb": 1022.01171875,
+      "latency_s": 9.330621400000382,
+      "tokens_per_sec": 34.29567938529656,
+      "total_output_tokens": 320,
+      "size_mb": 146.13367062721892
+    }
+  }
+}

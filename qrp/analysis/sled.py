@@ -19,22 +19,47 @@ class SLED_Decoded:
         model.to(self.device)
         return model, tokenizer
 
-    def kl_between_current_prev(self, prompt):  # model logits per token)
-
+    def compute_layer_logits_to_cpu(self, prompt):
+        """Single forward pass. Returns logits for every layer on CPU to save GPU memory."""
         input_tkns = self.tokenizer(prompt, return_tensors="pt").to(self.device)
         with torch.no_grad():
-            output = self.model(**input_tkns, output_hidden_states=True).hidden_states
+            outputs = self.model(**input_tkns, output_hidden_states=True)
+            hidden_states = outputs.hidden_states
+            all_logits_cpu = []
+            for h in hidden_states:
+                logits = self.lm_head(h).float().cpu()
+                all_logits_cpu.append(logits)
+            del outputs, hidden_states
+            torch.cuda.empty_cache()
+        return all_logits_cpu, input_tkns.input_ids
+
+    def kl_between_current_prev_from_cache(self, all_logits_cpu):
+        """KL divergence between consecutive layers, using CPU logits."""
         kl_values = []
-
-        for i in range(1, len(output)):
-            logits_prev = self.model(inputs_embeds=output[i - 1]).logits.float()
-            logits_curr = self.model(inputs_embeds=output[i]).logits.float()
-
+        for i in range(1, len(all_logits_cpu)):
+            logits_prev = all_logits_cpu[i - 1]
+            logits_curr = all_logits_cpu[i]
             prev_prob = torch.softmax(logits_prev, dim=-1)
             curr_log_prob = torch.log_softmax(logits_curr, dim=-1)
             kl = torch.nn.functional.kl_div(curr_log_prob, prev_prob, reduction="batchmean")
-            print(f"layer {i} and layer {i - 1}, kl-div: {kl}")
             kl_values.append(kl)
+        return kl_values
+
+    def kl_between_current_prev(self, prompt):
+        input_tkns = self.tokenizer(prompt, return_tensors="pt").to(self.device)
+        with torch.no_grad():
+            output = self.model(**input_tkns, output_hidden_states=True).hidden_states
+            kl_values = []
+
+            for i in range(1, len(output)):
+                logits_prev = self.lm_head(output[i - 1]).float()
+                logits_curr = self.lm_head(output[i]).float()
+
+                prev_prob = torch.softmax(logits_prev, dim=-1)
+                curr_log_prob = torch.log_softmax(logits_curr, dim=-1)
+                kl = torch.nn.functional.kl_div(curr_log_prob, prev_prob, reduction="batchmean")
+                print(f"layer {i} and layer {i - 1}, kl-div: {kl}")
+                kl_values.append(kl)
 
         return kl_values
 
@@ -92,8 +117,80 @@ class SLED_Decoded:
 
         probs_thresh = probs_max + np.log(relative_top)
         probs_thresh = torch.min(min_thresh, probs_thresh)
-        probs_thresh = probs_thresh.unsqueeze(-1)
         return scores_prob < probs_thresh
+
+    def layer_disagreement_from_cache(self, all_logits_cpu, input_ids, evolution_scale=10, candidate_premature_layers=None):
+        """Layer disagreement using CPU logits. Moves tensors to GPU only temporarily."""
+        num_layers_total = len(all_logits_cpu)
+
+        if candidate_premature_layers is None:
+            candidate_premature_layers = list(range(4, num_layers_total - 1, 4))
+
+        mature_logits_cpu = all_logits_cpu[num_layers_total - 1]
+        seq_len = input_ids.shape[1]
+
+        disagreement = []
+
+        for seq_i in range(seq_len - 1):
+            token_results = {}
+
+            # Build stacked premature logits on CPU, then move to GPU for computation
+            premature_stack = torch.stack(
+                [all_logits_cpu[idx][:, seq_i, :] for idx in candidate_premature_layers]
+            ).squeeze(1)
+
+            mature_token_logits = mature_logits_cpu[:, seq_i, :]
+
+            # Move to GPU for computation
+            mature_gpu = mature_token_logits.to(self.device)
+            premature_gpu = premature_stack.to(self.device)
+
+            mask = self.get_relative_top_filter(mature_gpu, relative_top=0.1)
+
+            softmax_mature = torch.nn.functional.softmax(mature_gpu, dim=-1)
+            softmax_premature = torch.nn.functional.softmax(premature_gpu, dim=-1)
+
+            topk_prob, topk_indices = torch.topk(softmax_mature, evolution_scale, dim=-1)
+            topk_indices = topk_indices[0]
+
+            log_premature = torch.log_softmax(premature_gpu.float(), dim=-1)
+            log_mature = torch.log_softmax(mature_gpu.float(), dim=-1)
+            divergence = log_premature - log_mature.unsqueeze(0)
+            divergence = divergence.squeeze()
+
+            candidate_gradients_expanded = softmax_premature.unsqueeze(1).expand(-1, len(topk_indices), -1).clone()
+            layer_divergence_expanded = divergence.unsqueeze(1).expand(-1, evolution_scale, -1)
+            layer_divergence_expanded = layer_divergence_expanded.to(self.device, dtype=torch.float32)
+
+            topk_indices_expanded = topk_indices.unsqueeze(0).unsqueeze(2)
+            candidate_mask = torch.zeros_like(candidate_gradients_expanded)
+            candidate_mask.scatter_(
+                2,
+                topk_indices_expanded.expand(softmax_premature.size(0), -1, -1),
+                1,
+            )
+            candidate_gradients_expanded = candidate_gradients_expanded - candidate_mask
+            candidate_gradients_expanded = candidate_gradients_expanded.to(self.device, dtype=torch.float32)
+
+            vocab_size = candidate_gradients_expanded.shape[-1]
+            flat_mask = mask.flatten()[:vocab_size]
+            expanded_mask = flat_mask.view(1, 1, vocab_size).expand_as(candidate_gradients_expanded)
+            candidate_gradients_expanded[expanded_mask] = 0.0
+            layer_divergence_expanded[expanded_mask] = 0.0
+
+            layer_dot_results = F.cosine_similarity(candidate_gradients_expanded, layer_divergence_expanded, dim=2)
+            for i, layer_idx in enumerate(candidate_premature_layers):
+                token_results[layer_idx] = layer_dot_results[i].cpu()
+            disagreement.append(token_results)
+
+            # Free GPU tensors immediately
+            del mature_gpu, premature_gpu, softmax_mature, softmax_premature
+            del log_premature, log_mature, divergence
+            del candidate_gradients_expanded, layer_divergence_expanded
+            del candidate_mask, expanded_mask, layer_dot_results, topk_indices_expanded
+            torch.cuda.empty_cache()
+
+        return disagreement
 
     def layer_disagreement(self, prompt, evolution_scale=10, candidate_premature_layers=[]):
         with torch.no_grad():
@@ -101,21 +198,23 @@ class SLED_Decoded:
             outputs = self.model(**input_tkns, output_hidden_states=True)
             hidden_states = outputs.hidden_states
 
-            premature_layers = []
-            for h in hidden_states:
-                logits = self.model.lm_head(h)
-                premature_layers.append(logits)
+            num_layers_total = len(hidden_states)
 
-            mature_logits = premature_layers[-1]
+            if candidate_premature_layers is None:
+                candidate_premature_layers = list(range(4, num_layers_total - 1, 4))
+
+            needed_indices = set(candidate_premature_layers) | {num_layers_total - 1}
+
+            premature_layers = {}
+            for idx in needed_indices:
+                premature_layers[idx] = self.lm_head(hidden_states[idx])
+            del outputs, hidden_states
+
+            mature_logits = premature_layers[num_layers_total - 1]
             seq_len = input_tkns.input_ids.shape[1]
 
             disagreement = []
 
-            if candidate_premature_layers is None:
-                num_layers = self.config.layers
-                candidate_premature_layers = list(range(4, num_layers - 1, 4))
-
-            # layer[batch, seq, vocab]
             for seq_i in range(seq_len - 1):
                 token_results = {}
 
@@ -127,10 +226,8 @@ class SLED_Decoded:
 
                 mature_token_logits = mature_logits[:, seq_i, :]
 
-                # add mask
                 mask = self.get_relative_top_filter(mature_token_logits, relative_top=0.1)
 
-                # softmax
                 softmax_mature = torch.nn.functional.softmax(mature_token_logits, dim=-1)
                 softmax_premature = torch.nn.functional.softmax(stacked_premature, dim=-1)
 
@@ -161,13 +258,11 @@ class SLED_Decoded:
 
                 candidate_gradients_expanded = candidate_gradients_expanded.to(self.device, dtype=torch.float32)
 
-                # shape to vocab size
                 vocab_size = candidate_gradients_expanded.shape[-1]
                 flat_mask = mask.flatten()[:vocab_size]
 
                 expanded_mask = flat_mask.view(1, 1, vocab_size).expand_as(candidate_gradients_expanded)
 
-                # if rejected by mask cast aside
                 candidate_gradients_expanded[expanded_mask] = 0.0
                 layer_divergence_expanded[expanded_mask] = 0.0
 
@@ -175,6 +270,13 @@ class SLED_Decoded:
                 for i, layer_idx in enumerate(candidate_premature_layers):
                     token_results[layer_idx] = layer_dot_results[i].detach().cpu()
                 disagreement.append(token_results)
+
+                del stacked_premature, softmax_mature, softmax_premature
+                del log_premature, log_mature, divergence
+                del candidate_gradients_expanded, layer_divergence_expanded
+                del candidate_mask, expanded_mask, layer_dot_results
+
+            del premature_layers, mature_logits
             return disagreement
 
     def token_ranking_evolution(self, prompt):

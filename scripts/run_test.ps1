@@ -33,7 +33,7 @@ foreach ($MODEL_NAME in $MODELS) {
     & $PYTHON_EXE -m qrp.quantize.find_optimal_mixed_precision --model-name $MODEL_NAME --output-folder $OUTPUT_FOLDER --samples $SAMPLES
     & $PYTHON_EXE -m qrp.quantize.export_quantized_model --model-name $MODEL_NAME --output-folder $OUTPUT_FOLDER --threshold-4bit 1.0 --threshold-8bit 1.5
     & $PYTHON_EXE -m qrp.quantize.run_compression_report --model-name $MODEL_NAME --output-folder $OUTPUT_FOLDER
-    & $PYTHON_EXE -m qrp.quantize.run_multi_dataset_benchmark --model-name $MODEL_NAME --output-folder $OUTPUT_FOLDER --samples $SAMPLES --datasets $DATASETS
+    & $PYTHON_EXE -m qrp.quantize.run_multi_dataset_benchmark --model-name $MODEL_NAME --output-folder $OUTPUT_FOLDER --samples $SAMPLES --datasets $DATASETS --with-gptq --gptq-bits 4 --with-awq --awq-bits 4 --with-spqr --spqr-bits 3 --with-slim --slim-bits 2 --with-smoothquant --smoothquant-bits 8 --with-atom --atom-bits 4
 }
 
 Write-Host ""

@@ -1,0 +1,23 @@
+\begin{table}[htbp]
+  \centering
+  \small
+  \caption{Quantization Benchmark: Baselines vs. LLM-QRP (Qwen/Qwen2.5-0.5B)}
+  \label{tab:benchmark}
+  \begin{tabular}{lrrrrrr}
+    \toprule
+    \textbf{Method} & \textbf{Size (MB)} & \textbf{VRAM (MB)} & \textbf{Compression} & \textbf{GSM8K} & \textbf{TruthfulQA} & \textbf{MMLU} \\
+    \midrule
+    Qwen2.5-0.5B & 715.7 & 3069.7 & 1.00x & 0.4864 & 0.0344 & 0.0082 \\
+    Uniform INT8 & 357.8 & 2723.4 & 2.00x & 0.4796 & 0.0342 & 0.0078 \\
+    Uniform INT4 & 178.9 & 2557.4 & 4.00x & 0.3948 & 0.0357 & 0.0100 \\
+    GPTQ (4-bit) & 178.9 & 3070.4 & 4.00x & 0.3909 & 0.0226 & 0.0059 \\
+    AWQ (4-bit) & 178.9 & 3070.2 & 4.00x & 0.4448 & 0.0337 & 0.0099 \\
+    SpQR (3-bit) & 188.5 & 3067.7 & 3.80x & 0.4820 & 0.0331 & 0.0080 \\
+    SliM-LLM (2-bit) & 89.5 & 3068.4 & 8.00x & 0.0299 & 0.0001 & 0.0001 \\
+    SmoothQuant (8-bit) & 357.8 & 3070.1 & 2.00x & 0.4857 & 0.0344 & 0.0081 \\
+    Atom (4-bit) & 178.9 & 3069.1 & 4.00x & 0.3831 & 0.0282 & 0.0081 \\
+    \midrule
+    +LLM-QRP (quantized) & 352.6 & 3071.0 & 2.03x & 0.4866 & 0.0338 & 0.0081 \\
+    \bottomrule
+  \end{tabular}
+\end{table}

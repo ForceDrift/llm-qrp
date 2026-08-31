@@ -2,14 +2,23 @@ import argparse
 import json
 import math
 import os
-import re
+import random
 
 import matplotlib.pyplot as plt
+import numpy as np
 import torch
 from datasets import load_dataset
 from tqdm import tqdm
 
 from qrp.analysis.ablation_controller import AblationController
+
+
+def set_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
 
 
 def evaluate_gsm8k(controller, dataset, max_new_tokens=256):
@@ -46,7 +55,11 @@ def main():
     parser.add_argument("--model-name", type=str, default="HuggingFaceTB/SmolLM2-360M", help="Model to evaluate")
     parser.add_argument("--output-folder", type=str, required=True, help="Base folder where results are saved")
     parser.add_argument("--samples", type=int, default=10, help="Number of questions to evaluate at each step for speed")
+    parser.add_argument("--seed", type=int, default=0, help="Random seed for sample selection and numerics")
+    parser.add_argument("--output-suffix", type=str, default="", help="Suffix for the JSON/PNG outputs (e.g. a seed)")
     args = parser.parse_args()
+
+    set_seed(args.seed)
 
     model_name_safe = args.model_name.replace("/", "_")
     base_dir = os.path.join(args.output_folder, model_name_safe)
@@ -74,7 +87,9 @@ def main():
     print("\nLoading dataset and model...")
     controller = AblationController(args.model_name)
     ds = load_dataset("gsm8k", "main", split="test")
-    eval_dataset = list(ds)[:args.samples]
+    eval_samples = list(ds)
+    random.shuffle(eval_samples)
+    eval_dataset = eval_samples[:args.samples]
 
     print("\nEvaluating Baseline (No Ablation)")
     baseline_acc = evaluate_gsm8k(controller, eval_dataset)
@@ -110,7 +125,8 @@ def main():
 
     ablation_out_dir = os.path.join(base_dir, "ablation")
     os.makedirs(ablation_out_dir, exist_ok=True)
-    json_path = os.path.join(ablation_out_dir, "ablation_metrics.json")
+    suffix = f"_{args.output_suffix}" if args.output_suffix else ""
+    json_path = os.path.join(ablation_out_dir, f"ablation_metrics{suffix}.json")
     with open(json_path, "w") as f:
         json.dump(results, f, indent=2)
 
@@ -132,7 +148,7 @@ def main():
     plt.legend()
     plt.xticks(range(0, twenty_percent_count + 1))
 
-    img_path = os.path.join(ablation_out_dir, "ablation_performance.png")
+    img_path = os.path.join(ablation_out_dir, f"ablation_performance{suffix}.png")
     plt.savefig(img_path, dpi=300, bbox_inches='tight')
     print(f"Saved graph to {img_path}")
     print(f"Saved metrics to {json_path}")

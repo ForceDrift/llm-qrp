@@ -1,0 +1,57 @@
+[
+  {
+    "id": 0,
+    "prompt": "Find the degree for the given field extension Q(sqrt(2), sqrt(3), sqrt(18)) over Q.",
+    "analysis": {
+      "layer_4": 0.50000881702674,
+      "layer_8": 0.23364170103628076,
+      "layer_12": 0.2085816965606092,
+      "layer_16": 0.22421984434735703,
+      "layer_20": 0.44120203330701246
+    }
+  },
+  {
+    "id": 1,
+    "prompt": "Let p = (1, 2, 5, 4)(2, 3) in S_5 . Find the index of <p> in S_5.",
+    "analysis": {
+      "layer_4": 0.2736817766541518,
+      "layer_8": 0.23290525917087573,
+      "layer_12": 0.26539800072219893,
+      "layer_16": 0.1556196572528439,
+      "layer_20": 0.28020621308599114
+    }
+  },
+  {
+    "id": 2,
+    "prompt": "Find all zeros in the indicated finite field of the given polynomial with coefficients in that field. x^5 + 3x^3 + x^2 + 2x in Z_5",
+    "analysis": {
+      "layer_4": 0.3125659224751692,
+      "layer_8": 0.0850288844818271,
+      "layer_12": 0.23546211349594257,
+      "layer_16": 0.14630842862260246,
+      "layer_20": 0.25073249266721565
+    }
+  },
+  {
+    "id": 3,
+    "prompt": "Statement 1 | A factor group of a non-Abelian group is non-Abelian. Statement 2 | If K is a normal subgroup of H and H is a normal subgroup of G, then K is a normal subgroup of G.",
+    "analysis": {
+      "layer_4": 0.056662716558142576,
+      "layer_8": 0.33803592276252153,
+      "layer_12": 0.34538347060576324,
+      "layer_16": 0.31784870425430933,
+      "layer_20": 0.25835785799044053
+    }
+  },
+  {
+    "id": 4,
+    "prompt": "Find the product of the given polynomials in the given polynomial ring. f(x) = 4x - 5, g(x) = 2x^2 - 4x + 2 in Z_8[x].",
+    "analysis": {
+      "layer_4": 0.2856240021726869,
+      "layer_8": 0.20730809086338706,
+      "layer_12": 0.154972366063149,
+      "layer_16": 0.34722838834398884,
+      "layer_20": 0.29004832992256885
+    }
+  }
+]

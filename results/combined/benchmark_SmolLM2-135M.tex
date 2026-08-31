@@ -1,0 +1,23 @@
+\begin{table}[htbp]
+  \centering
+  \small
+  \caption{Quantization baselines for SmolLM2-135M}
+  \label{tab:bench_SmolLM2_135M}
+  \begin{tabular}{lrrrrrr}
+    \toprule
+    \textbf{Method} & \textbf{Size (MB)} & \textbf{VRAM (MB)} & \textbf{Compression} & \textbf{GSM8K} & \textbf{TruthfulQA} & \textbf{MMLU} \\
+    \midrule
+    BF16 & 212.3 & 640.3 & 1.00x & 0.1891 & 0.0552 & 0.0062 \\
+    Uniform INT8 & 106.2 & 539.7 & 2.00x & 0.1848 & 0.0551 & 0.0067 \\
+    Uniform INT4 & 53.1 & 490.5 & 4.00x & 0.1458 & 0.0432 & 0.0057 \\
+    GPTQ (4-bit) & 53.1 & 641.9 & 4.00x & 0.1381 & 0.0321 & 0.0047 \\
+    AWQ (4-bit) & 53.1 & 677.6 & 4.00x & 0.1683 & 0.0504 & 0.0045 \\
+    SpQR (3-bit) & 55.7 & 657.3 & 3.82x & 0.1710 & 0.0524 & 0.0092 \\
+    SliM-LLM (2-bit) & 26.5 & 654.6 & 8.00x & 0.0007 & 0.0000 & 0.0000 \\
+    SmoothQuant (8-bit) & 106.2 & 650.8 & 2.00x & 0.1878 & 0.0549 & 0.0064 \\
+    Atom (4-bit) & 53.1 & 647.5 & 4.00x & 0.1128 & 0.0362 & 0.0030 \\
+    \midrule
+    \textbf{LLM-QRP} & 103.0 & 641.0 & 2.06x & \textbf{0.1885} & \textbf{0.0536} & \textbf{0.0057} \\
+    \bottomrule
+  \end{tabular}
+\end{table}

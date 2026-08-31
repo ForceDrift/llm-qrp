@@ -243,7 +243,7 @@ def main():
     num_layers = len(sorted_layers)
 
     print(f"\nLoaded {num_layers} layer scores from {aggregated_file}")
-    print(f"Layer score range: {sorted_layers[0][1]:.4f} — {sorted_layers[-1][1]:.4f}")
+    print(f"Layer score range: {sorted_layers[0][1]:.4f} - {sorted_layers[-1][1]:.4f}")
 
     print("\nLoading model and dataset...")
     quantizer = TargetedQuantizer(args.model_name)
@@ -302,7 +302,7 @@ def main():
         results.append(result)
 
         label = (f"[{candidate['pct_4bit']}% 4-bit, {candidate['pct_8bit']}% 8-bit] "
-                 f"Acc: {acc:.4f} | Size↓: {size_reduction:.1f}% | Eff: {efficiency:.2f}")
+                 f"Acc: {acc:.4f} | Size: {size_reduction:.1f}% | Eff: {efficiency:.2f}")
         tqdm.write(label)
 
     valid_results = [r for r in results if r["accuracy"] >= accuracy_floor]

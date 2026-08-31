@@ -1,0 +1,23 @@
+\begin{table}[htbp]
+  \centering
+  \small
+  \caption{Quantization Benchmark: Baselines vs. LLM-QRP (ibm-granite/granite-4.0-350m-base)}
+  \label{tab:benchmark}
+  \begin{tabular}{lrrrrrr}
+    \toprule
+    \textbf{Method} & \textbf{Size (MB)} & \textbf{VRAM (MB)} & \textbf{Compression} & \textbf{GSM8K} & \textbf{TruthfulQA} & \textbf{MMLU} \\
+    \midrule
+    granite-4.0-350m-base & 499.1 & 1468.0 & 1.00x & 0.2618 & 0.0311 & 0.0051 \\
+    Uniform INT8 & 249.6 & 1230.8 & 2.00x & 0.1009 & 0.0038 & 0.0002 \\
+    Uniform INT4 & 124.8 & 1115.2 & 4.00x & 0.1365 & 0.0240 & 0.0028 \\
+    GPTQ (4-bit) & 124.8 & 1468.1 & 4.00x & 0.2185 & 0.0213 & 0.0028 \\
+    AWQ (4-bit) & 124.8 & 1468.0 & 4.00x & 0.2046 & 0.0305 & 0.0038 \\
+    SpQR (3-bit) & 130.7 & 1468.0 & 3.82x & 0.2463 & 0.0328 & 0.0052 \\
+    SliM-LLM (2-bit) & 62.4 & 1468.0 & 8.00x & 0.0098 & 0.0000 & 0.0000 \\
+    SmoothQuant (8-bit) & 249.6 & 1468.0 & 2.00x & 0.2563 & 0.0316 & 0.0051 \\
+    Atom (4-bit) & 124.8 & 1468.0 & 4.00x & 0.1564 & 0.0251 & 0.0031 \\
+    \midrule
+    +LLM-QRP (quantized) & 240.8 & 1468.9 & 2.07x & 0.2559 & 0.0310 & 0.0053 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
