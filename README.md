@@ -2,7 +2,7 @@
 
 This software project accompanies the research paper *Quantization for Reasoning Preservation in Small LLMs* ([bibtex](#cite)).
 
-<img width="1423" height="569" alt="image" src="https://github.com/user-attachments/assets/b114d9e4-47f0-4208-aae6-f2a0773346b8" />
+<!-- <img width="1423" height="569" alt="image" src="https://github.com/user-attachments/assets/b114d9e4-47f0-4208-aae6-f2a0773346b8" /> -->
 
 ---
 
@@ -254,13 +254,12 @@ This codebase utilizes analytical metrics inspired by the official repos of [SLE
 
 ## Cite
 
-If you find this repository helpful, please consider citing our work (citation placeholder):
+If you find this repository helpful, please consider citing our work (not published yet):
 
 ```bibtex
-@inproceedings{
-  llmqrp2026,
+@inproceedings{llmqrp2026,
   title={Quantization for Reasoning Preservation in Small LLMs},
-  author={Anonymous},
+  author={Iruku, Roshan and Dhillon, Gurshaan},
   year={2026}
 }
 ```
